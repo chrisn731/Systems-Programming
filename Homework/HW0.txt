@@ -1,0 +1,84 @@
+0. (1pt. each)
+What do these loops print?
+Determine what they print first, then run them
+Write a short English description after each when submitting (do not submit numeric data)
+
+for(i = 0; i < 10; i = i + 2)
+{
+    printf("%d\n", i);
+}
+
+/* description */
+This will print 0 and the even numbers up to but not including 10 seperated by new lines
+    
+    
+for(i = 100; i >= 0; i = i - 7)
+{
+    printf("%d\n", i);
+}
+    
+/* description */
+This will print 100 then proceed to subtract 7 and print the number
+continuously seperated by new lines until the number becomes less than 0.
+    
+for(i = 1; i <= 10; i = i + 1)
+{
+    printf("%d\n", i);
+}
+
+/* description */
+This will print all the numbers from 1 to 10 seperated by new lines.
+    
+for(i = 2; i < 100; i = i * 2)
+{
+    printf("%d\n", i);
+}
+
+/* description */
+This will print all the powers of 2 in
+the range of 2 to 100 seperated by new lines. 
+
+
+
+1. (4pts.)
+Fill in the areas in the code below to produce to print this triangle:
+
+    *
+    **
+    ***
+    ****
+    *****
+    ******
+    *******
+    ********
+    *********
+    **********
+
+Do not call any functions other than those included below:
+
+    int i = 1;
+    int j = 0;
+    for(i = 1; i <= 10; i = i + 1)
+    {
+        for(j = 0; j < i; j = j + 1)
+        {
+            printf("*");
+        }
+        printf("\n");
+    }
+
+    
+Extra: (2pts.)
+ Change your loops to be while loops
+ This necessitates adding two additional lines.
+ (paste code below if attempting)
+int i = 1;
+while (i <= 10) {
+	int j = 0;
+	while (j < i) {
+		printf("*");
+		j++;
+	}
+	printf("\n");
+	i++;
+}
