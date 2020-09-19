@@ -1,0 +1,75 @@
+HW1:
+Homeworks are individual.
+
+Copy and paste the text below in to the submission window on Sakai with your answers added in.
+
+0. (2pts.)
+What's wrong with this #define line?
+    #define N 10;
+
+Answer: Defines dont need semicolons.
+
+1. (2pts.)
+Suppose you defined the macro
+    #define SIX 2+4
+
+    Then, suppose you used it in another expression:
+       int x = 12 / SIX;
+
+    What value would x be set to?
+
+Answer: The preprocessor would write (int x = 12 / 2+4) and through order of 
+	operations, the answer x would be is 10.
+
+2. (4pts.)
+Write your own version of atoi:
+    Take a char, inspect its numeric value and return its corresponding int value:
+    (do not use atoi() or any other automatic conversion function)
+        e.g.
+            int test = my_atoiChar('5');
+            if( test == 5 )
+            {
+                return 0;
+            }
+            else
+            {
+                return -1;
+            }
+Answer:
+	int my_atoiChar(char c)
+	{
+		return (c - 48);
+	}
+    
+    
+EX: (2pts.)
+Using my_atoi, expand it to convert a string representing an integer in to an integer.
+Take a string of any length, scan its chars until you hit the '\0' and return the entire string's int value:
+(do not use atoi() or any other automatic conversion function)
+    e.g.
+        int test = my_atoiString("512");
+        if( test == 512 )
+        {
+            return 0;
+        }
+        else
+        {
+            return -1;
+        }
+Answer:
+	int my_aotiString(char *str)
+	{
+		int total = 0;
+		int multiplier = 1;
+		char *parse = str;
+		
+		while (*parse != '\0') {
+			parse++;
+		}
+		while (str != parse) {
+			parse--;
+			total += my_atoiChar(*parse) * multiplier;
+			multiplier *= 10;
+		}
+		return total;
+	}
