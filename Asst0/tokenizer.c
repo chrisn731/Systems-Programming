@@ -29,9 +29,11 @@
 #include <string.h>
 #include <ctype.h>
 
-struct input_tokens {
-	char **input;
-	int num_of_tokens;
+#define ARRAY_SIZE(X) sizeof(X)/sizeof(*X)
+
+struct input_token {
+	char *input;
+	struct input_token *next;
 };
 
 struct C_token {
@@ -42,12 +44,11 @@ struct C_token {
 void die(const char *msg);
 void strcopy(const char *src, char *dest, int n);
 void print_token(const char *type, const char *tok);
-int is_letter(char c);
-int is_number(char c);
-int is_float (char *str);
-int is_hex(char *str);
+void parse_tokens(struct input_token *);
+int is_float (const char *str);
+int is_hex(const char *str);
 int num_of_tokens(char *arg);
-struct input_tokens *split_tokens(char *arg);
+struct input_token *split_tokens(char *arg);
 
 const struct C_token C_tokens[] = {
 	{"left parenthesis", "("},
@@ -122,7 +123,7 @@ void strcopy(const char *src, char *dest, int n)
  * Takes in a string and parses it for a decimal.
  * Returns 1 if decimal found, 0 if none.
  */
-int is_float(char *str)
+int is_float(const char *str)
 {
 	while (*str != '\0') {
 		if (*str == '.' && str[1] != '\0') {
@@ -133,7 +134,7 @@ int is_float(char *str)
 	return 0;
 }
 
-int is_hex(char *str)
+int is_hex(const char *str)
 {
 	return !!((str[0] == '0') &&
 		((str[1] == 'x') || str[1] == 'X'));
@@ -154,7 +155,7 @@ int num_of_tokens(char *arg)
 	char *parse = arg;
 
 	while (*parse != '\0') {
-		if (*parse != ' ') {
+		if (!isspace(*parse)) {
 			do {
 				parse++;
 			} while (!isspace(*parse) && *parse != '\0');
@@ -171,15 +172,13 @@ int num_of_tokens(char *arg)
  * Takes in a pointer to a string of tokens and breaks them up by
  * returning pointers to null terminated strings of each token.
  */
-struct input_tokens *split_tokens(char *arg)
+struct input_token *split_tokens(char *arg)
 {
-	struct input_tokens *tokens;
-	int strlen, index = 0;
+	struct input_token *head = NULL, **list_walker = NULL;
+	int strlen;
 	char *start_of_token, *parser = arg;
 
-	tokens = malloc(sizeof(*tokens));
-	tokens->num_of_tokens = num_of_tokens(arg);
-	tokens->input = malloc(sizeof(*tokens->input) * tokens->num_of_tokens);
+	list_walker = &head;
 	while (1) {
 		/* Skip all white space */
 		while (isspace(*parser))
@@ -196,15 +195,39 @@ struct input_tokens *split_tokens(char *arg)
 			strlen++;
 		}
 		/* Allocate space and then copy the token to be used later */
-		tokens->input[index] = malloc(sizeof(char) * (strlen + 1));
-		strcopy(start_of_token, tokens->input[index], strlen);
-		index++;
+		*list_walker = malloc(sizeof(**list_walker));
+		(*list_walker)->input = malloc(sizeof(char) * (strlen + 1));
+		strcopy(start_of_token, (*list_walker)->input, strlen);
+		list_walker = &(*list_walker)->next;
 	}
-	return tokens;
+	return head;
+}
+
+void parse_tokens(struct input_token *list)
+{
+	const char *token, *token_type;
+
+	while (list) {
+		token = list->input;
+		/* Should we check for C tokens first or after ? */
+
+		if (isalpha(*token)) {
+			token_type = "word";
+		} else if (is_hex(token)) {
+			token_type = "hexadecimal";
+		} else if (isdigit(token)) {
+			token_type = "decimal";
+		}
+
+		print_token(token_type, token);
+		list = list->next;
+	}
 }
 
 int main(int argc, char **argv)
 {
+	struct input_token *head;
+
 	if (argc < 2)
 		die("Please include a string.");
 	if (argc > 2)
@@ -212,6 +235,11 @@ int main(int argc, char **argv)
 	if (num_of_tokens(argv[1]) == 0)
 		return 0;
 	/* Parse command line args */
+
+
+	head = split_tokens(argv[1]);
+
+	parse_tokens(head);
 
 	return 0;
 }
