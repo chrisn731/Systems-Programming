@@ -117,24 +117,6 @@ void strcopy(const char *src, char *dest, int n)
 	}
 	*dest = '\0';
 }
-/*
- * Takes in a single letter 'c' and tests if it is a letter.
- * Returns 1 if it is a letter, 0 otherwise.
- */
-int is_letter(char c)
-{
-	return !!((c >= 'A' && c <= 'Z') ||
-		  (c >= 'a' && c <= 'z'));
-}
-
-/*
- * Takes in a single letter 'c' and tests if it is a number.
- * Returns 1 if it is a number, 0 otherwise.
- */
-int is_number(char c)
-{
-	return !!(c >= '0' && c <= '9');
-}
 
 /*
  * Takes in a string and parses it for a decimal.
