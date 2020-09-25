@@ -29,7 +29,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#define ARRAY_SIZE(X) sizeof(X)/sizeof(*X)
+#define ARRAY_SIZE(X) (sizeof(X)/sizeof(*(X)))
 
 struct input_token {
 	char *input;
@@ -206,16 +206,23 @@ struct input_token *split_tokens(char *arg)
 void parse_tokens(struct input_token *list)
 {
 	const char *token, *token_type;
+	int i;
 
 	while (list) {
 		token = list->input;
 		/* Should we check for C tokens first or after ? */
+		for (i = 0; i < (int) ARRAY_SIZE(C_tokens); i++) {
+			if (!strcmp(token, C_tokens[i].operator)) {
+				token_type = C_tokens[i].name;
+				break;
+			}
+		}
 
 		if (isalpha(*token)) {
 			token_type = "word";
 		} else if (is_hex(token)) {
 			token_type = "hexadecimal";
-		} else if (isdigit(token)) {
+		} else if (isdigit(*token)) {
 			token_type = "decimal";
 		}
 
