@@ -48,6 +48,7 @@ void print_token(const char *type, const char *tok);
 void parse_tokens(struct input_token *);
 void sanitize_word(struct input_token **);
 void sanitize_num(struct input_token **);
+void sanitize_symbol(struct input_token **);
 void split_token(struct input_token **, int);
 int is_float (const char *str);
 int is_hex(const char *str);
@@ -164,9 +165,7 @@ int is_hex(const char *str)
 	if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
 		str += 2;
 		while ((curr_char = *str++)) {
-			if (!isdigit(curr_char) &&
-			    !(curr_char >= 'A' && curr_char <= 'F') &&
-			    !(curr_char >= 'a' && curr_char <= 'f')) {
+			if (!isxdigit(curr_char)) {
 				return 0;
 			}
 		}
@@ -233,7 +232,11 @@ struct input_token *split_tokens(char *arg)
 		}
 		/* Allocate space and then copy the token to be used later */
 		*list_walker = malloc(sizeof(**list_walker));
+		if (!*list_walker)
+			die("Error allocating space to list_walker");
 		(*list_walker)->input = malloc(sizeof(char) * (strlen + 1));
+		if (!(*list_walker)->input)
+			die("Error allocating space to list_walker->input");
 		strcopy(start_of_token, (*list_walker)->input, strlen);
 		list_walker = &(*list_walker)->next;
 	}
@@ -281,23 +284,39 @@ void parse_tokens(struct input_token *list)
 	}
 }
 
+/*
+ * Splits a input token into two seperate token nodes.
+ * Where the input string is split is determined by toklen.
+ * This function is mainly going to be called for sanitizing
+ * input tokens that have multiple tokens attached together
+ * such as array[123] or 123abc.
+ */
 void split_token(struct input_token **token_node, int toklen)
 {
 	struct input_token *first, *second;
+	int remaining_length;
 
 	first = malloc(sizeof(*first));
 	second = malloc(sizeof(*second));
 
+	if (!first || !second)
+		die("Error allocating space in split_token()");
+
 	first->input = malloc(sizeof(char) * (toklen + 1));
+	if (!first->input)
+		die("Error allocating space to first->input");
 	strcopy((*token_node)->input, first->input, toklen);
 	first->next = second;
 
-	toklen = strlen((*token_node)->input) - toklen;
+	remaining_length = strlen((*token_node)->input) - toklen;
 
 	second->input = malloc(sizeof(char) * (toklen + 1));
-	strcopy(&((*token_node)->input[toklen]), second->input, toklen);
+	if (!second->input)
+		die("Error allocating space to second->input");
+	strcopy(&((*token_node)->input[toklen]), second->input, remaining_length);
 	second->next = (*token_node)->next;
 
+	/* Free the old node we don't need anymore */
 	free((*token_node)->input);
 	free(*token_node);
 	*token_node = first;
@@ -306,16 +325,11 @@ void split_token(struct input_token **token_node, int toklen)
 void sanitize_word(struct input_token **token_node)
 {
 	/* compiler needs to stfu pls holy god */
-	(void) token_node;
-}
-
-void sanitize_num(struct input_token **token_node)
-{
 	char *parser = (*token_node)->input;
 	int toklen = 0;
 
 	while (*parser) {
-		if (isalpha(*parser)) {
+		if (!isalnum(*parser)) {
 			split_token(token_node, toklen);
 			break;
 		}
@@ -323,11 +337,91 @@ void sanitize_num(struct input_token **token_node)
 		parser++;
 	}
 }
-/*
+
+void sanitize_num(struct input_token **token_node)
+{
+	char *parser = (*token_node)->input;
+	int toklen = 0, hex_num = 0;
+	if (*parser == '0') {
+		if (parser[1] == 'x' || parser[1] == 'X') {
+			hex_num = 1;
+			parser += 2;
+		}
+	}
+
+	while (*parser) {
+		if ((isalpha(*parser) && !hex_num) || (isalpha(*parser && !isxdigit(*parser)))) {
+			split_token(token_node, toklen);
+			break;
+		}
+		toklen++;
+		parser++;
+	}
+}
+
 void sanitize_symbol(struct input_token **token_node)
 {
+	char *parser = (*token_node)->input;
+	int toklen = 0, full_token_length;
+
+	full_token_length = strlen(parser);
+	switch (*parser) {
+	/* single symbol operators */
+	case '(':
+	case ')':
+	case '[':
+	case ']':
+	case '.':
+	case ',':
+	case '!':
+	case '~':
+	case '^':
+	case '?':
+	case ':':
+		toklen = 1;
+		break;
+
+	/* multi symbol operators */
+	case '>':
+		if (parser [1] == '>')
+			toklen = (parser[2] == '=') ? 3 : 2;
+		else
+			toklen = 1;
+		break;
+	case '<':
+		if (parser [1] == '<')
+			toklen = (parser[2] == '=') ? 3 : 2;
+		else
+			toklen = 1;
+		break;
+
+	case '-':
+		toklen = (parser[1] == '>' || parser[1] == '-') ? 2 : 1;
+		break;
+	case '|':
+		toklen = (parser[1] == '|' || parser[1] == '=') ? 2 : 1;
+		break;
+	case '+':
+		toklen = (parser[1] == '+' || parser[1] == '=') ? 2 : 1;
+		break;
+	case '&':
+		toklen = (parser[1] == '&' || parser[1] == '=') ? 2 : 1;
+		break;
+
+	case '=':
+	case '*':
+	case '%':
+	case '/':
+		toklen = (parser[1] == '=') ? 2 : 1;
+		break;
+	case '0':
+	default:
+		break;
+	}
+	if (full_token_length != toklen)
+		split_token(token_node, toklen);
 }
-*/
+
 void sanitize_tokens(struct input_token **list)
 {
 	const char *token;
@@ -335,10 +429,12 @@ void sanitize_tokens(struct input_token **list)
 		token = (*list)->input;
 		if (isalpha(*token)) {
 			/* Sanitize word */
+			sanitize_word(list);
 		} else if (isdigit(*token)) {
 			/* sanitize number */
 			sanitize_num(list);
 		} else {
+			sanitize_symbol(list);
 			/* sanitize symbol */
 		}
 		list = &(*list)->next;
