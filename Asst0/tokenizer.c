@@ -283,11 +283,10 @@ void parse_tokens(struct input_token *list)
 
 void split_token(struct input_token **token_node, int toklen)
 {
-	struct input_token *first, *second, *to_free;
+	struct input_token *first, *second;
 
 	first = malloc(sizeof(*first));
 	second = malloc(sizeof(*second));
-	to_free = *token_node;
 
 	first->input = malloc(sizeof(char) * (toklen + 1));
 	strcopy((*token_node)->input, first->input, toklen);
@@ -299,9 +298,9 @@ void split_token(struct input_token **token_node, int toklen)
 	strcopy(&((*token_node)->input[toklen]), second->input, toklen);
 	second->next = (*token_node)->next;
 
+	free((*token_node)->input);
+	free(*token_node);
 	*token_node = first;
-	free(to_free->input);
-	free(to_free);
 }
 
 void sanitize_word(struct input_token **token_node)
