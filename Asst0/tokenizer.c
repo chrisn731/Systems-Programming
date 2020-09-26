@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 
 #define ARRAY_SIZE(X) (sizeof(X)/sizeof(*(X)))
 
@@ -41,10 +42,12 @@ struct C_token {
 	const char *operator;
 };
 
-void die(const char *msg);
+void die(const char *msg, ...);
 void strcopy(const char *src, char *dest, int n);
 void print_token(const char *type, const char *tok);
 void parse_tokens(struct input_token *);
+void sanitize_word(struct input_token **);
+void sanitize_num(struct input_token **);
 int is_float (const char *str);
 int is_hex(const char *str);
 int num_of_tokens(char *arg);
@@ -102,9 +105,14 @@ const struct C_token C_tokens[] = {
  * Only called if program runs into unrecoverable error.
  * Does not return.
  */
-void die(const char *msg)
+void die(const char *err, ...)
 {
-	fprintf(stderr, "%s\n", msg);
+	va_list argp;
+
+	va_start(argp, err);
+	vfprintf(stderr, err, argp);
+	va_end(argp);
+	fputc('\n', stderr);
 	exit(1);
 }
 
@@ -170,7 +178,7 @@ int is_hex(const char *str)
 void print_token(const char *type, const char *token)
 {
 	if (type == NULL)
-		die("Error on finding token type");
+		die("Error on finding type for %s", token);
 	printf("%s: \"%s\"\n", type, token);
 }
 
@@ -243,7 +251,10 @@ void parse_tokens(struct input_token *list)
 
 		/* If it starts with a letter its prob a word */
 		if (isalpha(*token)) {
-			token_type = "word";
+			if (!strcmp("sizeof", token))
+				token_type = "sizeof";
+			else
+				token_type = "word";
 		/* If the starting char is a number it has to be a number */
 		} else if (isdigit(*token)) {
 			if (is_hex(token)) {
@@ -270,18 +281,93 @@ void parse_tokens(struct input_token *list)
 	}
 }
 
-void sanitize_tokens(struct input_token **head)
+void sanitize_word(struct input_token **token_node)
+{
+	char *parser = (*token_node)->input;
+	int strlen = 0;
+
+	while (*parser) {
+		strlen++;
+		if (!isalnum(*parser)) {
+			struct input_token *first, *second, *to_free;
+
+			first = malloc(sizeof(*first));
+			second = malloc(sizeof(*second));
+			to_free = *token_node;
+
+			first->input = malloc(sizeof(char) * (strlen + 1));
+			strcopy((*token_node)->input, first->input, strlen);
+			first->next = second;
+
+			strlen = 0;
+			while (*parser++)
+				strlen++;
+
+			second->input = malloc(sizeof(char) * (strlen + 1));
+			strcopy(parser, second->input, strlen);
+			second->next = (*token_node)->next;
+			*token_node = first;
+			free(to_free->input);
+			free(to_free);
+			break;
+		}
+		parser++;
+	}
+}
+
+void sanitize_num(struct input_token **token_node)
+{
+	char *parser = (*token_node)->input;
+	int strlen = 0;
+
+	while (*parser) {
+		strlen++;
+		if (!isalpha(*parser)) {
+			struct input_token *first, *second, *to_free;
+
+			first = malloc(sizeof(*first));
+			second = malloc(sizeof(*second));
+			to_free = *token_node;
+
+			first->input = malloc(sizeof(char) * (strlen + 1));
+			strcopy((*token_node)->input, first->input, strlen);
+			first->next = second;
+
+			strlen = 0;
+			while (*parser++)
+				strlen++;
+
+			second->input = malloc(sizeof(char) * (strlen + 1));
+			strcopy(parser, second->input, strlen);
+			second->next = (*token_node)->next;
+			*token_node = first;
+			free(to_free->input);
+			free(to_free);
+			break;
+		}
+		parser++;
+	}
+}
+/*
+void sanitize_symbol(struct input_token **token_node)
+{
+}
+*/
+void sanitize_tokens(struct input_token **list)
 {
 	const char *token;
-	while (*head) {
-		token = (*head)->input;
+	while (*list) {
+		token = (*list)->input;
 		if (isalpha(*token)) {
 			/* Sanitize word */
+			sanitize_word(list);
 		} else if (isdigit(*token)) {
 			/* sanitize number */
+			sanitize_num(list);
 		} else {
 			/* sanitize symbol */
 		}
+		list = &(*list)->next;
 	}
 }
 
