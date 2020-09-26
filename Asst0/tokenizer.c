@@ -48,7 +48,9 @@ void parse_tokens(struct input_token *);
 int is_float (const char *str);
 int is_hex(const char *str);
 int num_of_tokens(char *arg);
+int is_octal(const char *str);
 struct input_token *split_tokens(char *arg);
+void sanitize_tokens(struct input_token **);
 
 const struct C_token C_tokens[] = {
 	{"left parenthesis", "("},
@@ -134,14 +136,41 @@ int is_float(const char *str)
 	return 0;
 }
 
+int is_octal(const char *str)
+{
+	if (*str == '0' && str[1] != '\0') {
+		while (*++str) {
+			if (*str < '0' || *str > '7') {
+				return 0;
+			}
+		}
+		return 1;
+	}
+	return 0;
+}
+
 int is_hex(const char *str)
 {
-	return !!((str[0] == '0') &&
-		((str[1] == 'x') || str[1] == 'X'));
+	char curr_char;
+
+	if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
+		str += 2;
+		while ((curr_char = *str++)) {
+			if (!isdigit(curr_char) &&
+			    !(curr_char >= 'A' && curr_char <= 'F') &&
+			    !(curr_char >= 'a' && curr_char <= 'f')) {
+				return 0;
+			}
+		}
+		return 1;
+	}
+	return 0;
 }
 
 void print_token(const char *type, const char *token)
 {
+	if (type == NULL)
+		die("Error on finding token type");
 	printf("%s: \"%s\"\n", type, token);
 }
 
@@ -210,24 +239,49 @@ void parse_tokens(struct input_token *list)
 
 	while (list) {
 		token = list->input;
-		/* Should we check for C tokens first or after ? */
-		for (i = 0; i < (int) ARRAY_SIZE(C_tokens); i++) {
-			if (!strcmp(token, C_tokens[i].operator)) {
-				token_type = C_tokens[i].name;
-				break;
-			}
-		}
+		token_type = NULL;
 
+		/* If it starts with a letter its prob a word */
 		if (isalpha(*token)) {
 			token_type = "word";
-		} else if (is_hex(token)) {
-			token_type = "hexadecimal";
+		/* If the starting char is a number it has to be a number */
 		} else if (isdigit(*token)) {
-			token_type = "decimal";
+			if (is_hex(token)) {
+				token_type = "hex integer";
+			} else if (is_octal(token)) {
+				token_type = "octal integer";
+			} else if (is_float(token)) {
+				token_type = "float";
+			} else {
+				token_type = "decimal integer";
+			}
+		/* If it is neither a number nor letter then it must be a symbol */
+		} else {
+			for (i = 0; i < (int) ARRAY_SIZE(C_tokens); i++) {
+				if (!strcmp(token, C_tokens[i].operator)) {
+					token_type = C_tokens[i].name;
+					break;
+				}
+			}
 		}
 
 		print_token(token_type, token);
 		list = list->next;
+	}
+}
+
+void sanitize_tokens(struct input_token **head)
+{
+	const char *token;
+	while (*head) {
+		token = (*head)->input;
+		if (isalpha(*token)) {
+			/* Sanitize word */
+		} else if (isdigit(*token)) {
+			/* sanitize number */
+		} else {
+			/* sanitize symbol */
+		}
 	}
 }
 
@@ -245,7 +299,7 @@ int main(int argc, char **argv)
 
 
 	head = split_tokens(argv[1]);
-
+	/* sanitize_tokens(&head); */
 	parse_tokens(head);
 
 	return 0;
