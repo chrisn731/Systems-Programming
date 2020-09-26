@@ -48,6 +48,7 @@ void print_token(const char *type, const char *tok);
 void parse_tokens(struct input_token *);
 void sanitize_word(struct input_token **);
 void sanitize_num(struct input_token **);
+void split_token(struct input_token **, int);
 int is_float (const char *str);
 int is_hex(const char *str);
 int num_of_tokens(char *arg);
@@ -101,7 +102,7 @@ const struct C_token C_tokens[] = {
 };
 
 /*
- * Error exit function.
+ * Fatal error exit function.
  * Only called if program runs into unrecoverable error.
  * Does not return.
  */
@@ -117,15 +118,14 @@ void die(const char *err, ...)
 }
 
 /*
- * Similar to strncpy but will insert null terminator
- * at the end of string.
+ * Copies n characters from src to dest.
+ * At n + 1 characters places a null byte.
  */
 void strcopy(const char *src, char *dest, int n)
 {
-	while (n > 0) {
+	while (n--)
 		*dest++ = *src++;
-		n--;
-	}
+
 	*dest = '\0';
 }
 
@@ -135,7 +135,7 @@ void strcopy(const char *src, char *dest, int n)
  */
 int is_float(const char *str)
 {
-	while (*str != '\0') {
+	while (*str) {
 		if (*str == '.' && str[1] != '\0') {
 			return 1;
 		}
@@ -281,70 +281,46 @@ void parse_tokens(struct input_token *list)
 	}
 }
 
+void split_token(struct input_token **token_node, int toklen)
+{
+	struct input_token *first, *second, *to_free;
+
+	first = malloc(sizeof(*first));
+	second = malloc(sizeof(*second));
+	to_free = *token_node;
+
+	first->input = malloc(sizeof(char) * (toklen + 1));
+	strcopy((*token_node)->input, first->input, toklen);
+	first->next = second;
+
+	toklen = strlen((*token_node)->input) - toklen;
+
+	second->input = malloc(sizeof(char) * (toklen + 1));
+	strcopy(&((*token_node)->input[toklen]), second->input, toklen);
+	second->next = (*token_node)->next;
+
+	*token_node = first;
+	free(to_free->input);
+	free(to_free);
+}
+
 void sanitize_word(struct input_token **token_node)
 {
-	char *parser = (*token_node)->input;
-	int strlen = 0;
-
-	while (*parser) {
-		strlen++;
-		if (!isalnum(*parser)) {
-			struct input_token *first, *second, *to_free;
-
-			first = malloc(sizeof(*first));
-			second = malloc(sizeof(*second));
-			to_free = *token_node;
-
-			first->input = malloc(sizeof(char) * (strlen + 1));
-			strcopy((*token_node)->input, first->input, strlen);
-			first->next = second;
-
-			strlen = 0;
-			while (*parser++)
-				strlen++;
-
-			second->input = malloc(sizeof(char) * (strlen + 1));
-			strcopy(parser, second->input, strlen);
-			second->next = (*token_node)->next;
-			*token_node = first;
-			free(to_free->input);
-			free(to_free);
-			break;
-		}
-		parser++;
-	}
+	/* compiler needs to stfu pls holy god */
+	(void) token_node;
 }
 
 void sanitize_num(struct input_token **token_node)
 {
 	char *parser = (*token_node)->input;
-	int strlen = 0;
+	int toklen = 0;
 
 	while (*parser) {
-		strlen++;
-		if (!isalpha(*parser)) {
-			struct input_token *first, *second, *to_free;
-
-			first = malloc(sizeof(*first));
-			second = malloc(sizeof(*second));
-			to_free = *token_node;
-
-			first->input = malloc(sizeof(char) * (strlen + 1));
-			strcopy((*token_node)->input, first->input, strlen);
-			first->next = second;
-
-			strlen = 0;
-			while (*parser++)
-				strlen++;
-
-			second->input = malloc(sizeof(char) * (strlen + 1));
-			strcopy(parser, second->input, strlen);
-			second->next = (*token_node)->next;
-			*token_node = first;
-			free(to_free->input);
-			free(to_free);
+		if (isalpha(*parser)) {
+			split_token(token_node, toklen);
 			break;
 		}
+		toklen++;
 		parser++;
 	}
 }
@@ -360,7 +336,6 @@ void sanitize_tokens(struct input_token **list)
 		token = (*list)->input;
 		if (isalpha(*token)) {
 			/* Sanitize word */
-			sanitize_word(list);
 		} else if (isdigit(*token)) {
 			/* sanitize number */
 			sanitize_num(list);
@@ -385,7 +360,7 @@ int main(int argc, char **argv)
 
 
 	head = split_tokens(argv[1]);
-	/* sanitize_tokens(&head); */
+	sanitize_tokens(&head);
 	parse_tokens(head);
 
 	return 0;
