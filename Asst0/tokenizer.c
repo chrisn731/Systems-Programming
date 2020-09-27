@@ -31,7 +31,7 @@
 #include <stdarg.h>
 
 #define DEBUG 0
-#define ARRAY_SIZE(X) (sizeof(X)/sizeof(*(X)))
+#define ARRAY_SIZE(X) (int)(sizeof(X)/sizeof(*(X)))
 
 struct input_token {
 	char *input;
@@ -51,6 +51,7 @@ void sanitize_word(struct input_token **);
 void sanitize_num(struct input_token **);
 void sanitize_symbol(struct input_token **);
 void split_token(struct input_token **, int);
+void free_list(struct input_token *);
 int is_float (const char *str);
 int is_hex(const char *str);
 int num_of_tokens(char *arg);
@@ -111,7 +112,6 @@ const struct C_token C_tokens[] = {
 void die(const char *err, ...)
 {
 	va_list argp;
-
 	va_start(argp, err);
 	vfprintf(stderr, err, argp);
 	va_end(argp);
@@ -180,6 +180,17 @@ void print_token(const char *type, const char *token)
 	if (type == NULL)
 		die("Error on finding type for %s", token);
 	printf("%s: \"%s\"\n", type, token);
+}
+
+void free_list(struct input_token *list)
+{
+	struct input_token *temp;
+	while (list) {
+		temp = list;
+		list = list->next;
+		free(temp->input);
+		free(temp);
+	}
 }
 
 /*
@@ -272,7 +283,7 @@ void parse_tokens(struct input_token *list)
 			}
 		/* If it is neither a number nor letter then it must be a symbol */
 		} else {
-			for (i = 0; i < (int) ARRAY_SIZE(C_tokens); i++) {
+			for (i = 0; i < ARRAY_SIZE(C_tokens); i++) {
 				if (!strcmp(token, C_tokens[i].operator)) {
 					token_type = C_tokens[i].name;
 					break;
@@ -291,6 +302,10 @@ void parse_tokens(struct input_token *list)
  * This function is mainly going to be called for sanitizing
  * input tokens that have multiple tokens attached together
  * such as array[123] or 123abc.
+ * Ex: OriginalNode -> "123abc"
+ *     |
+ *     |- node1 -> "123"
+ *     |- node2 -> "abc"
  */
 void split_token(struct input_token **token_node, int toklen)
 {
@@ -339,21 +354,41 @@ void sanitize_word(struct input_token **token_node)
 	}
 }
 
+/*
+ * This needs to be rewritten.
+ * This will be split into different functions to
+ * sanitize floats, octal, and decimal.
+ */
 void sanitize_num(struct input_token **token_node)
 {
 	char *parser = (*token_node)->input;
-	int toklen = 0, hex_num = 0;
+	int toklen = 0, hex_num = 0, float_num = 0;
 	if (*parser == '0') {
 		if (parser[1] == 'x' || parser[1] == 'X') {
 			hex_num = 1;
 			parser += 2;
+			toklen += 2;
 		}
 	}
 
 	while (*parser) {
-		if ((isalpha(*parser) && !hex_num) || (isalpha(*parser && !isxdigit(*parser)))) {
-			split_token(token_node, toklen);
-			break;
+		if (*parser == '.') {
+			if (!hex_num) {
+				float_num = 1;
+			} else {
+				split_token(token_node, toklen);
+				break;
+			}
+
+		}
+		if ((isalpha(*parser) && !hex_num) || (isalpha(*parser) && !isxdigit(*parser))) {
+			if (float_num == 1 && *parser == 'e') {
+				parser++;
+				toklen++;
+			} else {
+				split_token(token_node, toklen);
+				break;
+			}
 		}
 		toklen++;
 		parser++;
@@ -391,8 +426,9 @@ void sanitize_symbol(struct input_token **token_node)
 		break;
 
 	/*
-	 * -, |, +, & can can either be themselves, following themselves
-	 *  or following an '='
+	 * -, |, +, & can can either be themselves: '-','|',etc.
+	 *  following themselves: '--','||', etc.
+	 *  or following an '=': '-=', '|=', '+=', '&='
 	 */
 	case '-':
 		toklen = (parser[1] == '>' || parser[1] == '-') ? 2 : 1;
@@ -450,8 +486,8 @@ void sanitize_tokens(struct input_token **list)
 			/* sanitize number */
 			sanitize_num(list);
 		} else {
-			sanitize_symbol(list);
 			/* sanitize symbol */
+			sanitize_symbol(list);
 		}
 		list = &(*list)->next;
 	}
@@ -478,14 +514,16 @@ int main(int argc, char **argv)
 	printf("===After input===\n");
 	for (parser = head; parser != NULL; parser = parser->next)
 		printf("%s\n", parser->input);
-#endif
 	sanitize_tokens(&head);
-#if DEBUG
 	printf("===After sanitize===\n");
 	for (parser = head; parser != NULL; parser = parser->next)
 		printf("%s\n", parser->input);
+#else
+
+	sanitize_tokens(&head);
 #endif
 	parse_tokens(head);
+	free_list(head);
 
 	return 0;
 }

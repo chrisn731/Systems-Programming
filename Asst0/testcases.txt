@@ -12,7 +12,7 @@ plus equals: "+="
 word: "pi"
 float: "3.14159e-10"
 
-PASSED? : Not tested yet.
+PASSED? : PASSED
 ****************************************
 
 INPUT: "numbers 972 0x972 A8 0XA8 XA8 0972 072"
@@ -26,7 +26,7 @@ word: "XA8"
 decimal integer: "0972"
 octal integer: "072"
 
-PASSED? : Not tested yet.
+PASSED? : PASSED
 ****************************************
 
 INPUT: "3.1 03.1 x3.1 0x3.1 30x1.x"
@@ -44,7 +44,7 @@ word: "x1"
 structure member: "."
 word: "x"
 
-PASSED? : Not tested yet.
+PASSED? : PASSED
 ****************************************
 
 INPUT: "+,++,+++,++++,+++++,++=,+++=="
@@ -70,7 +70,7 @@ increment: "++"
 plus equals: "+="
 assignment: "="
 
-PASSED? : Yes
+PASSED? : PASSED
 
 ########################################
 
