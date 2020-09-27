@@ -30,6 +30,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 
+#define DEBUG 0
 #define ARRAY_SIZE(X) (sizeof(X)/sizeof(*(X)))
 
 struct input_token {
@@ -310,7 +311,7 @@ void split_token(struct input_token **token_node, int toklen)
 
 	remaining_length = strlen((*token_node)->input) - toklen;
 
-	second->input = malloc(sizeof(char) * (toklen + 1));
+	second->input = malloc(sizeof(char) * (remaining_length + 1));
 	if (!second->input)
 		die("Error allocating space to second->input");
 	strcopy(&((*token_node)->input[toklen]), second->input, remaining_length);
@@ -444,6 +445,9 @@ void sanitize_tokens(struct input_token **list)
 int main(int argc, char **argv)
 {
 	struct input_token *head;
+#if DEBUG
+	struct input_token *parser;
+#endif
 
 	if (argc < 2)
 		die("Please include a string.");
@@ -455,7 +459,17 @@ int main(int argc, char **argv)
 
 
 	head = split_tokens(argv[1]);
+#if DEBUG
+	printf("===After input===\n");
+	for (parser = head; parser != NULL; parser = parser->next)
+		printf("%s\n", parser->input);
+#endif
 	sanitize_tokens(&head);
+#if DEBUG
+	printf("===After sanitize===\n");
+	for (parser = head; parser != NULL; parser = parser->next)
+		printf("%s\n", parser->input);
+#endif
 	parse_tokens(head);
 
 	return 0;
