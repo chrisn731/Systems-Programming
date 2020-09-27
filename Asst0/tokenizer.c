@@ -367,7 +367,7 @@ void sanitize_symbol(struct input_token **token_node)
 
 	full_token_length = strlen(parser);
 	switch (*parser) {
-	/* single symbol operators */
+	/* The following symbols can ONLY be themselves */
 	case '(':
 	case ')':
 	case '[':
@@ -382,20 +382,18 @@ void sanitize_symbol(struct input_token **token_node)
 		toklen = 1;
 		break;
 
-	/* multi symbol operators */
-	case '>':
-		if (parser [1] == '>')
-			toklen = (parser[2] == '=') ? 3 : 2;
-		else
-			toklen = 1;
-		break;
-	case '<':
-		if (parser [1] == '<')
-			toklen = (parser[2] == '=') ? 3 : 2;
-		else
-			toklen = 1;
+	/* The following symbols can ONLY be themselves or follwing an '=' */
+	case '=':
+	case '*':
+	case '%':
+	case '/':
+		toklen = (parser[1] == '=') ? 2 : 1;
 		break;
 
+	/*
+	 * -, |, +, & can can either be themselves, following themselves
+	 *  or following an '='
+	 */
 	case '-':
 		toklen = (parser[1] == '>' || parser[1] == '-') ? 2 : 1;
 		break;
@@ -409,12 +407,29 @@ void sanitize_symbol(struct input_token **token_node)
 		toklen = (parser[1] == '&' || parser[1] == '=') ? 2 : 1;
 		break;
 
-	case '=':
-	case '*':
-	case '%':
-	case '/':
-		toklen = (parser[1] == '=') ? 2 : 1;
+	/*
+	 * > and < can be either themselves, '>' '<'
+	 * following themselves '<<' '>>'
+	 * following an equals '>=' '<='
+	 * or following themselves with an equals '<<=' '>>='
+	 */
+	case '>':
+		if (parser[1] == '>')
+			toklen = (parser[2] == '=') ? 3 : 2;
+		else if (parser[1] == '=')
+			toklen = 2;
+		else
+			toklen = 1;
 		break;
+	case '<':
+		if (parser[1] == '<')
+			toklen = (parser[2] == '=') ? 3 : 2;
+		else if (parser[1] == '=')
+			toklen = 2;
+		else
+			toklen = 1;
+		break;
+
 	case '0':
 	default:
 		break;
