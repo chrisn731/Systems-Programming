@@ -146,6 +146,10 @@ int is_float(const char *str)
 	return 0;
 }
 
+/*
+ * Takes in a string and parses to make sure all characters are
+ * numbers and that they are all in the range of 0-7.
+ */
 int is_octal(const char *str)
 {
 	if (*str == '0' && str[1] != '\0') {
@@ -159,6 +163,10 @@ int is_octal(const char *str)
 	return 0;
 }
 
+/*
+ * Takes in a string (str) and parses to make sure all characters are
+ * numbers and or letters that are all in the hex character range (0-9, a - f)
+ */
 int is_hex(const char *str)
 {
 	char curr_char;
@@ -175,6 +183,7 @@ int is_hex(const char *str)
 	return 0;
 }
 
+/* Prints token type and the token to the user */
 void print_token(const char *type, const char *token)
 {
 	if (type == NULL)
@@ -182,6 +191,7 @@ void print_token(const char *type, const char *token)
 	printf("%s: \"%s\"\n", type, token);
 }
 
+/* Frees up memory being used by input token list */
 void free_list(struct input_token *list)
 {
 	struct input_token *temp;
@@ -255,6 +265,12 @@ struct input_token *split_tokens(char *arg)
 	return head;
 }
 
+/*
+ * Takes in a pointer to an input token list and goes throught the list.
+ * At every point in the list it checks what type of token it is and then
+ * prints that type and token to the user. This is called after all tokens
+ * have been read from command line AND have been sanitized.
+ */
 void parse_tokens(struct input_token *list)
 {
 	const char *token, *token_type;
@@ -338,9 +354,12 @@ void split_token(struct input_token **token_node, int toklen)
 	*token_node = first;
 }
 
+/*
+ * Sanitizes strings starting with a letter. Splits token
+ * in two if it runs into a character that is NOT alphanumeric.
+ */
 void sanitize_word(struct input_token **token_node)
 {
-	/* compiler needs to stfu pls holy god */
 	char *parser = (*token_node)->input;
 	int toklen = 0;
 
@@ -395,6 +414,11 @@ void sanitize_num(struct input_token **token_node)
 	}
 }
 
+/*
+ * Sanitizes strings starting with a symbol. Given what the first symbol is
+ * it is easy to discern what should follow. If the symbol does not make up
+ * the full length of the token, split it in two.
+ */
 void sanitize_symbol(struct input_token **token_node)
 {
 	char *parser = (*token_node)->input;
@@ -417,7 +441,10 @@ void sanitize_symbol(struct input_token **token_node)
 		toklen = 1;
 		break;
 
-	/* The following symbols can ONLY be themselves or follwing an '=' */
+	/*
+	 * The following symbols can ONLY be themselves: '=', '*', etc.
+	 * or follwing an '=': '==', '*=', '\=', etc.
+	 */
 	case '=':
 	case '*':
 	case '%':
@@ -426,39 +453,32 @@ void sanitize_symbol(struct input_token **token_node)
 		break;
 
 	/*
-	 * -, |, +, & can can either be themselves: '-','|',etc.
-	 *  following themselves: '--','||', etc.
-	 *  or following an '=': '-=', '|=', '+=', '&='
+	 * '-' is a special case such that it can be alone '-' or following
+	 * '>', '-', or '='
 	 */
 	case '-':
-		toklen = (parser[1] == '>' || parser[1] == '-') ? 2 : 1;
+		toklen = (parser[1] == '>' || parser[1] == '-' || parser[1] == '=') ? 2 : 1;
 		break;
+	/*
+	 * -, |, +, & can can either be themselves: '+', '|', etc.
+	 *  following themselves: '++', '||', etc.
+	 *  or following an equals: '-=', '|=', '+=', '&='
+	 */
 	case '|':
-		toklen = (parser[1] == '|' || parser[1] == '=') ? 2 : 1;
-		break;
 	case '+':
-		toklen = (parser[1] == '+' || parser[1] == '=') ? 2 : 1;
-		break;
 	case '&':
-		toklen = (parser[1] == '&' || parser[1] == '=') ? 2 : 1;
+		toklen = (parser[1] == *parser || parser[1] == '=') ? 2 : 1;
 		break;
 
 	/*
-	 * > and < can be either themselves, '>' '<'
-	 * following themselves '<<' '>>'
-	 * following an equals '>=' '<='
-	 * or following themselves with an equals '<<=' '>>='
+	 * > and < can be either themselves: '>' '<'
+	 * following themselves: '<<' '>>'
+	 * following an equals: '>=' '<='
+	 * or following themselves with an equals: '<<=' '>>='
 	 */
 	case '>':
-		if (parser[1] == '>')
-			toklen = (parser[2] == '=') ? 3 : 2;
-		else if (parser[1] == '=')
-			toklen = 2;
-		else
-			toklen = 1;
-		break;
 	case '<':
-		if (parser[1] == '<')
+		if (parser[1] == *parser)
 			toklen = (parser[2] == '=') ? 3 : 2;
 		else if (parser[1] == '=')
 			toklen = 2;
@@ -470,10 +490,17 @@ void sanitize_symbol(struct input_token **token_node)
 	default:
 		break;
 	}
+	/* If our symbol doesnt take up the full length of the string. Then split it */
 	if (full_token_length != toklen)
 		split_token(token_node, toklen);
 }
 
+/*
+ * Kick off function to start sanizing each token within
+ * the input token list. Simply looks at the first character
+ * of each input string and the sanitize operation is decided
+ * on what type of character that is.
+ */
 void sanitize_tokens(struct input_token **list)
 {
 	const char *token;
