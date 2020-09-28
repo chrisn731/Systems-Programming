@@ -9,3 +9,4 @@ THINGS TO FIX:
 2. Sort out how sizeof is treated with other letters
 3. Fix floating point issue where parser jumps too far if contains 'e' most likely
 	needs to be added under the ispunct case in sanitize num
+4. Be able to read from argv[1], argv[2], etc.
