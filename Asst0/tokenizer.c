@@ -391,19 +391,17 @@ void sanitize_num(struct input_token **token_node)
 	}
 
 	while (*parser) {
-		if (*parser == '.') {
-			if (!hex_num) {
-				float_num = 1;
-			} else {
-				split_token(token_node, toklen);
-				break;
-			}
-
-		}
 		if ((isalpha(*parser) && !hex_num) || (isalpha(*parser) && !isxdigit(*parser))) {
 			if (float_num == 1 && *parser == 'e') {
 				parser++;
 				toklen++;
+			} else {
+				split_token(token_node, toklen);
+				break;
+			}
+		} else if (ispunct(*parser)) {
+			if (*parser == '.' && !hex_num) {
+				float_num = 1;
 			} else {
 				split_token(token_node, toklen);
 				break;
