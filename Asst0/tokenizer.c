@@ -288,17 +288,21 @@ struct input_token *split_tokens(char *arg)
 			continue;
 		}
 
-		/* If we find a multi-line comment, skip until we find a * / 
-			THIS SHOULD BE WORKING BUT ITS NOT???*/
+		/* If we find a multi-line comment, skip until we find a * / */
 		if (*parser == '/' && parser[1] == '*'){
 			parser += 2; //skip the * to get to next symbol
-			while (*parser != '*' && parser[1] != '/' && *parser != '\0'){
+			while (*parser != '\0') {
+				if (*parser == '*' && parser[1] == '/'){
+					parser += 2;
+					break;
+				}
 				parser++;
 			}
 			if (*parser != '\0'){
-				parser += 2; //skip the / to get to next symbol
+				continue;
+			} else {
+				printf("Bruh you never ended the comment. Tf?\n");
 			}
-			continue;
 		}
 
 		/* Track the beginning of token and it's length */
