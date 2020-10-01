@@ -26,7 +26,7 @@ CFLAGS += -Wunreachable-code
 CFLAGS += -Wunused-but-set-parameter
 CFLAGS += -Wwrite-strings
 
-all: token
+all: tokenizer
 
-token: tokenizer.c
+tokenizer: tokenizer.c
 	$(CC) $(CFLAGS) -o $@ $^

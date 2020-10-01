@@ -1,0 +1,78 @@
+Test Cases:
+
+Given by instructor:
+
+INPUT: "array[xyz ] += pi 3.14159e-10"
+EXPECTED OUTPUT:
+word: "array"
+left bracket: "["
+word: "xyz"
+right bracket: "]"
+plus equals: "+="
+word: "pi"
+float: "3.14159e-10"
+
+PASSED? : PASSED
+****************************************
+
+INPUT: "numbers 972 0x972 A8 0XA8 XA8 0972 072"
+EXPECTED OUTPUT:
+word: "numbers"
+decimal integer: "972"
+hexadecimal integer: "0x972"
+word: "A8"
+hexadecimal integer: "0XA8"
+word: "XA8"
+decimal integer: "0972"
+octal integer: "072"
+
+PASSED? : PASSED
+****************************************
+
+INPUT: "3.1 03.1 x3.1 0x3.1 30x1.x"
+EXPECTED OUTPUT:
+floating point: "3.1"
+floating point: "03.1"
+word: "x3"
+structure member: "."
+decimal integer: "1"
+hexadecimal integer: "0x3"
+structure member: "."
+decimal integer: "1"
+decimal integer: "30"
+word: "x1"
+structure member: "."
+word: "x"
+
+PASSED? : PASSED
+****************************************
+
+INPUT: "+,++,+++,++++,+++++,++=,+++=="
+EXPECTED OUTPUT:
+addition: "+"
+comma: ","
+increment: "++"
+comma: ","
+increment: "++"
+addition: "+"
+comma: ","
+increment: "++"
+increment: "++"
+comma: ","
+increment: "++"
+increment: "++"
+addition: "+"
+comma: ","
+increment: "++"
+assignment: "="
+comma: ","
+increment: "++"
+plus equals: "+="
+assignment: "="
+
+PASSED? : PASSED
+
+########################################
+
+Own formed test cases:
+TBD
