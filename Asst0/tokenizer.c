@@ -104,6 +104,41 @@ const struct C_token C_tokens[] = {
 	{"multiply/dereference operator", "*"},
 };
 
+const struct C_token C_keywords[] = {
+	{"if statement", "if"},
+	{"else statement", "else"},
+	{"do", "do"},
+	{"while", "while"},
+	{"for", "for"},
+	{"char", "char"},
+	{"int", "int"},
+	{"double", "double"},
+	{"float", "float"},
+	{"long", "long"},
+	{"short keyword", "short"},
+	{"return", "return"},
+	{"break", "break"},
+	{"continue", "continue"},
+	{"const keyword", "const"},
+	{"struct", "struct"},
+	{"unsigned", "unsigned"},
+	{"signed", "signed"},
+	{"switch", "switch"},
+	{"void", "void"},
+	{"case", "case"},
+	{"default", "default"},
+	{"register", "register"},
+	{"typedef", "typedef"},
+	{"enum", "enum"},
+	{"goto", "goto"},
+	{"static", "static"},
+	{"union", "union"},
+	{"auto", "auto"},
+	{"volatile", "volatile"},
+	{"extern", "extern"},
+	{"sizeof", "sizeof"},
+};
+
 /*
  * Fatal error exit function.
  * Only called if program runs into unrecoverable error.
@@ -245,6 +280,27 @@ struct input_token *split_tokens(char *arg)
 		if (*parser == '\0')
 			break;
 
+		/* If we find a single-line comment, skip until we find a \n */
+		if (*parser == '/' && parser[1] == '/'){
+			while (*parser != '\n' && *parser != '\0'){
+				parser++;
+			}
+			continue;
+		}
+
+		/* If we find a multi-line comment, skip until we find a * / 
+			THIS SHOULD BE WORKING BUT ITS NOT???*/
+		if (*parser == '/' && parser[1] == '*'){
+			parser += 2; //skip the * to get to next symbol
+			while (*parser != '*' && parser[1] != '/' && *parser != '\0'){
+				parser++;
+			}
+			if (*parser != '\0'){
+				parser += 2; //skip the / to get to next symbol
+			}
+			continue;
+		}
+
 		/* Track the beginning of token and it's length */
 		start_of_token = parser;
 		strlen = 0;
@@ -282,9 +338,14 @@ void parse_tokens(struct input_token *list)
 
 		/* If it starts with a letter its prob a word */
 		if (isalpha(*token)) {
-			if (!strcmp("sizeof", token))
-				token_type = "sizeof";
-			else
+			for (i = 0; i < ARRAY_SIZE(C_keywords); i++){
+				if (!strcmp(token, C_keywords[i].operator)) {
+					token_type = C_keywords[i].name;
+					break;
+				}
+			}
+
+			if (token_type == NULL)
 				token_type = "word";
 		/* If the starting char is a number it has to be a number */
 		} else if (isdigit(*token)) {
