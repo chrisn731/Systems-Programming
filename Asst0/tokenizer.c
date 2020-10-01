@@ -57,7 +57,7 @@ int is_hex(const char *str);
 int num_of_tokens(char *arg);
 int is_octal(const char *str);
 struct input_token *new_token_node(int);
-struct input_token *split_tokens(char *arg);
+struct input_token *create_token_list(char *arg);
 void sanitize_tokens(struct input_token **);
 
 const struct C_token C_tokens[] = {
@@ -262,7 +262,7 @@ void free_list(struct input_token *list)
  * Takes in a pointer to a string of tokens and breaks them up by
  * returning pointers to null terminated strings of each token.
  */
-struct input_token *split_tokens(char *arg)
+struct input_token *create_token_list(char *arg)
 {
 	struct input_token *head = NULL, **list_walker = NULL;
 	int toklen;
@@ -572,7 +572,7 @@ int main(int argc, char **argv)
 	/* Parse command line args */
 
 
-	head = split_tokens(argv[1]);
+	head = create_token_list(argv[1]);
 	if (head == NULL)
 		return 0;
 #if DEBUG
