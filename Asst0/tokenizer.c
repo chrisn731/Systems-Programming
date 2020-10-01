@@ -20,7 +20,7 @@
  * TODO:
  * 	1. Split up given input
  * 	2. Parse all split tokens and make sure there are no combos (123abc)
- * 	3. Kill Allender
+ * 	3. DON'T Kill Allender
  * 	4. Parse all split tokens and print what they are words, numbers, etc.
  */
 
