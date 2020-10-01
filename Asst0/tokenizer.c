@@ -20,7 +20,7 @@
  * TODO:
  * 	1. Split up given input
  * 	2. Parse all split tokens and make sure there are no combos (123abc)
- * 	3. Kill Allender
+ * 	3. DON'T Kill Allender
  * 	4. Parse all split tokens and print what they are words, numbers, etc.
  */
 
@@ -56,6 +56,7 @@ int is_float (const char *str);
 int is_hex(const char *str);
 int num_of_tokens(char *arg);
 int is_octal(const char *str);
+struct input_token *new_token_node(int);
 struct input_token *split_tokens(char *arg);
 void sanitize_tokens(struct input_token **);
 
@@ -66,7 +67,6 @@ const struct C_token C_tokens[] = {
 	{"right brace", "]"},
 	{"structure member", "."},
 	{"structure pointer", "->"},
-	{"sizeof", "sizeof"},
 	{"comma", ","},
 	{"negate", "!"},
 	{"1s complement", "~"},
@@ -78,6 +78,7 @@ const struct C_token C_tokens[] = {
 	{"decrement", "--"},
 	{"addition", "+"},
 	{"division", "/"},
+	{"modulo", "%"},
 	{"logical OR", "||"},
 	{"logical AND", "&&"},
 	{"conditional true", "?"},
@@ -102,6 +103,41 @@ const struct C_token C_tokens[] = {
 	{"AND/address operator", "&"},
 	{"minus/subtract operator", "-"},
 	{"multiply/dereference operator", "*"},
+};
+
+const struct C_token C_keywords[] = {
+	{"if statement", "if"},
+	{"else statement", "else"},
+	{"do", "do"},
+	{"while", "while"},
+	{"for", "for"},
+	{"char", "char"},
+	{"int", "int"},
+	{"double", "double"},
+	{"float", "float"},
+	{"long", "long"},
+	{"short keyword", "short"},
+	{"return", "return"},
+	{"break", "break"},
+	{"continue", "continue"},
+	{"const keyword", "const"},
+	{"struct", "struct"},
+	{"unsigned", "unsigned"},
+	{"signed", "signed"},
+	{"switch", "switch"},
+	{"void", "void"},
+	{"case", "case"},
+	{"default", "default"},
+	{"register", "register"},
+	{"typedef", "typedef"},
+	{"enum", "enum"},
+	{"goto", "goto"},
+	{"static", "static"},
+	{"union", "union"},
+	{"auto", "auto"},
+	{"volatile", "volatile"},
+	{"extern", "extern"},
+	{"sizeof", "sizeof"},
 };
 
 /*
@@ -191,6 +227,25 @@ void print_token(const char *type, const char *token)
 	printf("%s: \"%s\"\n", type, token);
 }
 
+/*
+ * Takes in an integer representing how long the token node's string
+ * is. Then mallocs the appropriate space to hold the node and its token.
+ */
+struct input_token *new_token_node(int toklen)
+{
+	struct input_token *new;
+
+	new = malloc(sizeof(*new));
+	if (!new)
+		die("Error allocating memeory to new token node");
+	new->input = malloc(sizeof(char) * (toklen + 1));
+	if (!new->input)
+		die("Error allocating memory to new token node string");
+	new->next = NULL;
+
+	return new;
+}
+
 /* Frees up memory being used by input token list */
 void free_list(struct input_token *list)
 {
@@ -204,36 +259,13 @@ void free_list(struct input_token *list)
 }
 
 /*
- * Takes in a pointer to a string of tokens and returns num of
- * tokens as int.
- */
-int num_of_tokens(char *arg)
-{
-	int num = 0;
-	char *parse = arg;
-
-	while (*parse != '\0') {
-		if (!isspace(*parse)) {
-			do {
-				parse++;
-			} while (!isspace(*parse) && *parse != '\0');
-			num++;
-		}
-		while (isspace(*parse) && *parse != '\0') {
-			parse++;
-		}
-	}
-	return num;
-}
-
-/*
  * Takes in a pointer to a string of tokens and breaks them up by
  * returning pointers to null terminated strings of each token.
  */
 struct input_token *split_tokens(char *arg)
 {
 	struct input_token *head = NULL, **list_walker = NULL;
-	int strlen;
+	int toklen;
 	char *start_of_token, *parser = arg;
 
 	list_walker = &head;
@@ -245,21 +277,37 @@ struct input_token *split_tokens(char *arg)
 		if (*parser == '\0')
 			break;
 
+		/* If we find a single-line comment, skip until we find a \n */
+		if (*parser == '/' && parser[1] == '/'){
+			while (*parser != '\n' && *parser != '\0'){
+				parser++;
+			}
+			continue;
+		}
+
+		/* If we find a multi-line comment, skip until we find a * / */
+		if (*parser == '/' && parser[1] == '*'){
+			parser += 2;
+			while (*parser != '\0') {
+				if (*parser == '*' && parser[1] == '/'){
+					parser += 2;
+					break;
+				}
+				parser++;
+			}
+			continue;
+		}
+
 		/* Track the beginning of token and it's length */
 		start_of_token = parser;
-		strlen = 0;
+		toklen = 0;
 		while (!isspace(*parser) && *parser != '\0') {
 			parser++;
-			strlen++;
+			toklen++;
 		}
 		/* Allocate space and then copy the token to be used later */
-		*list_walker = malloc(sizeof(**list_walker));
-		if (!*list_walker)
-			die("Error allocating space to list_walker");
-		(*list_walker)->input = malloc(sizeof(char) * (strlen + 1));
-		if (!(*list_walker)->input)
-			die("Error allocating space to list_walker->input");
-		strcopy(start_of_token, (*list_walker)->input, strlen);
+		*list_walker = new_token_node(toklen);
+		strcopy(start_of_token, (*list_walker)->input, toklen);
 		list_walker = &(*list_walker)->next;
 	}
 	return head;
@@ -282,10 +330,14 @@ void parse_tokens(struct input_token *list)
 
 		/* If it starts with a letter its prob a word */
 		if (isalpha(*token)) {
-			if (!strcmp("sizeof", token))
-				token_type = "sizeof";
-			else
-				token_type = "word";
+			token_type = "word";
+			/* Scan to see if it is a special C keyword */
+			for (i = 0; i < ARRAY_SIZE(C_keywords); i++){
+				if (!strcmp(token, C_keywords[i].operator)) {
+					token_type = C_keywords[i].name;
+					break;
+				}
+			}
 		/* If the starting char is a number it has to be a number */
 		} else if (isdigit(*token)) {
 			if (is_hex(token)) {
@@ -306,7 +358,6 @@ void parse_tokens(struct input_token *list)
 				}
 			}
 		}
-
 		print_token(token_type, token);
 		list = list->next;
 	}
@@ -325,33 +376,24 @@ void parse_tokens(struct input_token *list)
  */
 void split_token(struct input_token **token_node, int toklen)
 {
-	struct input_token *first, *second;
+	struct input_token *node1, *node2;
+	char *token_to_split = (*token_node)->input;
 	int remaining_length;
 
-	first = malloc(sizeof(*first));
-	second = malloc(sizeof(*second));
+	remaining_length = strlen(token_to_split) - toklen;
 
-	if (!first || !second)
-		die("Error allocating space in split_token()");
+	node1 = new_token_node(toklen);
+	node2 = new_token_node(remaining_length);
 
-	first->input = malloc(sizeof(char) * (toklen + 1));
-	if (!first->input)
-		die("Error allocating space to first->input");
-	strcopy((*token_node)->input, first->input, toklen);
-	first->next = second;
+	strcopy(token_to_split, node1->input, toklen);
+	node1->next = node2;
+	strcopy((token_to_split + toklen), node2->input, remaining_length);
+	node2->next = (*token_node)->next;
 
-	remaining_length = strlen((*token_node)->input) - toklen;
-
-	second->input = malloc(sizeof(char) * (remaining_length + 1));
-	if (!second->input)
-		die("Error allocating space to second->input");
-	strcopy(&((*token_node)->input[toklen]), second->input, remaining_length);
-	second->next = (*token_node)->next;
-
-	/* Free the old node we don't need anymore */
-	free((*token_node)->input);
+	/* Free the old node and it's token we don't need anymore */
+	free(token_to_split);
 	free(*token_node);
-	*token_node = first;
+	*token_node = node1;
 }
 
 /*
@@ -382,12 +424,10 @@ void sanitize_num(struct input_token **token_node)
 {
 	char *parser = (*token_node)->input;
 	int toklen = 0, hex_num = 0, float_num = 0;
-	if (*parser == '0') {
-		if (parser[1] == 'x' || parser[1] == 'X') {
-			hex_num = 1;
-			parser += 2;
-			toklen += 2;
-		}
+	if (*parser == '0' && (parser[1] == 'x' || parser[1] == 'X')) {
+		hex_num = 1;
+		parser += 2;
+		toklen += 2;
 	}
 
 	while (*parser) {
@@ -425,7 +465,7 @@ void sanitize_symbol(struct input_token **token_node)
 	full_token_length = strlen(parser);
 	switch (*parser) {
 	/* The following symbols can ONLY be themselves */
-	case '(':
+	case '(': /* FALLTHROUGH */
 	case ')':
 	case '[':
 	case ']':
@@ -443,7 +483,7 @@ void sanitize_symbol(struct input_token **token_node)
 	 * The following symbols can ONLY be themselves: '=', '*', etc.
 	 * or follwing an '=': '==', '*=', '\=', etc.
 	 */
-	case '=':
+	case '=': /* FALLTHROUGH */
 	case '*':
 	case '%':
 	case '/':
@@ -462,7 +502,7 @@ void sanitize_symbol(struct input_token **token_node)
 	 *  following themselves: '++', '||', etc.
 	 *  or following an equals: '-=', '|=', '+=', '&='
 	 */
-	case '|':
+	case '|': /* FALLTHROUGH */
 	case '+':
 	case '&':
 		toklen = (parser[1] == *parser || parser[1] == '=') ? 2 : 1;
@@ -474,7 +514,7 @@ void sanitize_symbol(struct input_token **token_node)
 	 * following an equals: '>=' '<='
 	 * or following themselves with an equals: '<<=' '>>='
 	 */
-	case '>':
+	case '>': /* FALLTHROUGH */
 	case '<':
 		if (parser[1] == *parser)
 			toklen = (parser[2] == '=') ? 3 : 2;
@@ -529,12 +569,12 @@ int main(int argc, char **argv)
 		die("Please include a string.");
 	if (argc > 2)
 		die("Received too many inputs.");
-	if (num_of_tokens(argv[1]) == 0)
-		return 0;
 	/* Parse command line args */
 
 
 	head = split_tokens(argv[1]);
+	if (head == NULL)
+		return 0;
 #if DEBUG
 	printf("===After input===\n");
 	for (parser = head; parser != NULL; parser = parser->next)
