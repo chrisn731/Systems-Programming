@@ -108,36 +108,35 @@ const struct C_token C_tokens[] = {
 const struct C_token C_keywords[] = {
 	{"if statement", "if"},
 	{"else statement", "else"},
-	{"do", "do"},
-	{"while", "while"},
-	{"for", "for"},
-	{"char", "char"},
-	{"int", "int"},
-	{"double", "double"},
-	{"float", "float"},
-	{"long", "long"},
-	{"short keyword", "short"},
-	{"return", "return"},
-	{"break", "break"},
-	{"continue", "continue"},
-	{"const keyword", "const"},
-	{"struct", "struct"},
-	{"unsigned", "unsigned"},
-	{"signed", "signed"},
-	{"switch", "switch"},
-	{"void", "void"},
-	{"case", "case"},
-	{"default", "default"},
-	{"register", "register"},
-	{"typedef", "typedef"},
-	{"enum", "enum"},
-	{"goto", "goto"},
-	{"static", "static"},
-	{"union", "union"},
-	{"auto", "auto"},
-	{"volatile", "volatile"},
-	{"extern", "extern"},
-	{"sizeof", "sizeof"},
+	{"do statement", "do"},
+	{"while statement", "while"},
+	{"for statement", "for"},
+	{"char type", "char"},
+	{"int type", "int"},
+	{"double type", "double"},
+	{"float type", "float"},
+	{"long type", "long"},
+	{"short type", "short"},
+	{"return keyword", "return"},
+	{"break keyword", "break"},
+	{"continue keyword", "continue"},
+	{"const type", "const"},
+	{"struct type", "struct"},
+	{"unsigned type", "unsigned"},
+	{"signed type", "signed"},
+	{"switch keyword", "switch"},
+	{"void type", "void"},
+	{"case keyword", "case"},
+	{"default keyword", "default"},
+	{"register keyword", "register"},
+	{"typedef keyword", "typedef"},
+	{"enum keyword", "enum"},
+	{"goto keyword", "goto"},
+	{"static type", "static"},
+	{"union type", "union"},
+	{"volatile type", "volatile"},
+	{"extern type", "extern"},
+	{"sizeof keyword", "sizeof"},
 };
 
 /*
@@ -277,38 +276,45 @@ struct input_token *create_token_list(char *arg)
 		if (*parser == '\0')
 			break;
 
-		/* If we find a single-line comment, skip until we find a \n */
-		if (*parser == '/' && parser[1] == '/'){
-			while (*parser != '\n' && *parser != '\0'){
-				parser++;
-			}
-			continue;
-		}
-
-		/* If we find a multi-line comment, skip until we find a * / */
-		if (*parser == '/' && parser[1] == '*'){
-			parser += 2;
-			while (*parser != '\0') {
-				if (*parser == '*' && parser[1] == '/'){
-					parser += 2;
-					break;
-				}
-				parser++;
-			}
-			continue;
-		}
-
-		/* Track the beginning of token and it's length */
+		/* Track the beginning of the token and it's length */
 		start_of_token = parser;
 		toklen = 0;
+
+		/*
+		 * Parse through the characters, if we come across comment
+		 * sequence '//' or '/ *' then skip ahead
+		 */
 		while (!isspace(*parser) && *parser != '\0') {
-			parser++;
-			toklen++;
+			if (*parser == '/' && parser[1] == '/') {
+				while (*parser != '\n' && *parser != '\0') {
+					parser ++;
+				}
+				break;
+			} else if (*parser == '/' && parser[1] == '*') {
+				parser += 2;
+				while (*parser != '\0') {
+					if (*parser == '*' && parser[1] == '/') {
+						parser += 2;
+						break;
+					}
+					parser++;
+				}
+				break;
+			} else {
+				parser++;
+				toklen++;
+			}
 		}
-		/* Allocate space and then copy the token to be used later */
-		*list_walker = new_token_node(toklen);
-		strcopy(start_of_token, (*list_walker)->input, toklen);
-		list_walker = &(*list_walker)->next;
+
+		/*
+		 * Allocate space and then copy the token to be used later
+		 * only if we counted > 0 characters.
+		 */
+		if (toklen > 0) {
+			*list_walker = new_token_node(toklen);
+			strcopy(start_of_token, (*list_walker)->input, toklen);
+			list_walker = &(*list_walker)->next;
+		}
 	}
 	return head;
 }
