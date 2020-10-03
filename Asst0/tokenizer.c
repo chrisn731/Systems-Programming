@@ -16,50 +16,47 @@
  * 	right brace "]"
  */
 
-/*
- * TODO:
- * 	1. Split up given input
- * 	2. Parse all split tokens and make sure there are no combos (123abc)
- * 	3. DON'T Kill Allender
- * 	4. Parse all split tokens and print what they are words, numbers, etc.
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <stdarg.h>
 
 #define DEBUG 0
 #define ARRAY_SIZE(X) (int)(sizeof(X)/sizeof(*(X)))
 
+/* Input Token struct to be used to make a linked list of tokens */
 struct input_token {
 	char *input;
 	struct input_token *next;
 };
 
+/* C Token struct to be used to make arrays of C keywords and symbols */
 struct C_token {
 	const char *name;
 	const char *operator;
 };
 
-void die(const char *msg, ...);
-void strcopy(const char *src, char *dest, int n);
-void print_token(const char *type, const char *tok);
+void die(const char *msg);
+void free_list(struct input_token *);
 void parse_tokens(struct input_token *);
-void sanitize_word(struct input_token **);
+void print_token(const char *type, const char *tok);
 void sanitize_num(struct input_token **);
 void sanitize_symbol(struct input_token **);
+void sanitize_tokens(struct input_token **);
+void sanitize_word(struct input_token **);
 void split_token(struct input_token **, int);
-void free_list(struct input_token *);
+void strcopy(const char *src, char *dest, int n);
 int is_float (const char *str);
 int is_hex(const char *str);
-int num_of_tokens(char *arg);
 int is_octal(const char *str);
+int num_of_tokens(char *arg);
 struct input_token *new_token_node(int);
 struct input_token *create_token_list(char *arg);
-void sanitize_tokens(struct input_token **);
 
+/*
+ * Array to keep track of all operators used in the C language.
+ * Used mainly to parse symbols given by user input.
+ */
 const struct C_token C_tokens[] = {
 	{"left parenthesis", "("},
 	{"right parenthesis", ")"},
@@ -105,6 +102,11 @@ const struct C_token C_tokens[] = {
 	{"multiply/dereference operator", "*"},
 };
 
+/*
+ * Array to keep track of all keywords used in the C language.
+ * Used mainly to parse words given by user input to determine
+ * if they are a keyword or not.
+ */
 const struct C_token C_keywords[] = {
 	{"if statement", "if"},
 	{"else statement", "else"},
@@ -144,13 +146,9 @@ const struct C_token C_keywords[] = {
  * Only called if program runs into unrecoverable error.
  * Does not return.
  */
-void die(const char *err, ...)
+void die(const char *err)
 {
-	va_list argp;
-	va_start(argp, err);
-	vfprintf(stderr, err, argp);
-	va_end(argp);
-	fputc('\n', stderr);
+	fprintf(stderr, "%s\n", err);
 	exit(1);
 }
 
@@ -167,7 +165,7 @@ void strcopy(const char *src, char *dest, int n)
 }
 
 /*
- * Takes in a string and parses it for a decimal.
+ * Takes in a string (str) and parses it for a decimal.
  * Returns 1 if decimal found, 0 if none.
  */
 int is_float(const char *str)
@@ -182,7 +180,7 @@ int is_float(const char *str)
 }
 
 /*
- * Takes in a string and parses to make sure all characters are
+ * Takes in a string (str) and parses to make sure all characters are
  * numbers and that they are all in the range of 0-7.
  */
 int is_octal(const char *str)
@@ -221,9 +219,10 @@ int is_hex(const char *str)
 /* Prints token type and the token to the user */
 void print_token(const char *type, const char *token)
 {
-	if (type == NULL)
-		die("Error on finding type for %s", token);
-	printf("%s: \"%s\"\n", type, token);
+	if (type != NULL)
+		printf("%s: \"%s\"\n", type, token);
+	else
+		printf("Error on finding type for %s", token);
 }
 
 /*
