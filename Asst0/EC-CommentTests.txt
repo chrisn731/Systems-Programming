@@ -1,0 +1,66 @@
+INPUT: "Th1sShould Check[4] Comments/*IfAnyOf this appears,that's really bad*/But/I doubt thatdbe the case"
+EXPECTED OUTPUT:
+word: "Th1sShould"
+word: "Check"
+left brace: "["
+decimal integer: "4"
+right brace: "]"
+word: "Comments"
+word: "But"
+division: "/"
+word: "I"
+word: "doubt"
+word: "thatdbe"
+word: "the"
+case: "case"
+
+
+PASSED? : PASSED
+=======================================================================================================
+
+INPUT: "array[xyz ] += pi 3.14159e-10 //Pieisgood
+	while(/*plz dont show this part*/)"
+EXPECTED OUTPUT:
+word: "array"
+left brace: "["
+word: "xyz"
+right brace: "]"
+plus equals: "+="
+word: "pi"
+float: "3.14159e-10"
+while: "while"
+left parenthesis: "("
+right parenthesis: ")"
+
+
+PASSED? : PASSED
+=======================================================================================================
+
+INPUT: "numbers/*(numeros en espanol)*/ 972 0x972 A8 0XA8 XA8 0972 072//dont show the rest of this line"
+EXPECTED OUTPUT:
+word: "numbers"
+decimal integer: "972"
+hex integer: "0x972"
+word: "A8"
+hex integer: "0XA8"
+word: "XA8"
+decimal integer: "0972"
+octal integer: "072"
+
+PASSED? : PASSED
+=======================================================================================================
+
+INPUT: "/**/ThatCommentWasEmpty/*IHavePhysicsHWTo*/do/*ButImStuckCheckingToSee*/if/*CommentsWork*/"
+EXPECTED OUTPUT:
+word: "ThatCommentWasEmpty"
+do: "do"
+if statement: "if"
+
+PASSED? : PASSED
+========================================================================================================
+
+INPUT: "/*///////////*//**//**//"
+EXPECTED OUTPUT:
+division: "/"
+
+PASSED? : PASSED
