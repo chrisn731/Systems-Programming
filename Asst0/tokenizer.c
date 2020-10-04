@@ -14,6 +14,8 @@
  * 	left brace "["
  * 	integer "123"
  * 	right brace "]"
+ *
+ * 	Read README.PDF for more documentation.
  */
 
 #include <stdio.h>
@@ -566,33 +568,24 @@ void sanitize_tokens(struct input_token **list)
 int main(int argc, char **argv)
 {
 	struct input_token *head;
-#if DEBUG
-	struct input_token *parser;
-#endif
 
 	if (argc < 2)
-		die("Please include a string.");
+		die("Please include a string to tokenize.");
 	if (argc > 2)
-		die("Received too many inputs.");
-	/* Parse command line args */
+		die("Received too many inputs. Please input as one string.");
 
 
+	/* Create token List */
 	head = create_token_list(argv[1]);
-	if (head == NULL)
-		return 0;
-#if DEBUG
-	printf("===After input===\n");
-	for (parser = head; parser != NULL; parser = parser->next)
-		printf("%s\n", parser->input);
-	sanitize_tokens(&head);
-	printf("===After sanitize===\n");
-	for (parser = head; parser != NULL; parser = parser->next)
-		printf("%s\n", parser->input);
-#else
+	if (!head)
+		return 1;
 
+	/* Sanitize the input list */
 	sanitize_tokens(&head);
-#endif
+
+	/* Parse Sanitized Tokens */
 	parse_tokens(head);
+	/* Free memory */
 	free_list(head);
 
 	return 0;
