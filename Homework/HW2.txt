@@ -1,0 +1,68 @@
+0. (1pt.)
+ What are the differences between the strlen() and sizeof() a char* string pointer in C? Why?
+
+Answer: 
+If you were to use strlen on a char*, it would get the amount of characters up to but not including
+the null terminating byte at the memory location that the pointer refers to. In contrast, sizeof on
+a char* returns the amount of bytes that a pointer to char takes up in memory, it has nothing to do
+with what is at the address that it points to unlike strlen.
+        
+1. (6pts.)
+ Write the function
+
+    replace(char base[], char from[], char to[])
+
+which finds the string 'from' in the string 'base' and replaces it with the string 'to'. You may assume that from and to are the same length. For example, the code
+
+    char string[] = "recieve";
+    replace(string, "ie", "ei");
+    //> should change 'string' to "receive".
+
+    *Be careful not to assume the substring being replaced is singular, or that its own substrings are unique.
+    *Do not rescan letters already checked/replaced
+        char string[] = "Msissisippi";
+        replace(string, "sis", "iss");
+        //> should change 'string' to "Mississippi" (.. and not miss the second "sis")
+                
+        char string[] = " flajellate";
+        replace(string, "laj", "lag");
+        //> should change 'string' to "flagellate" (.. and not modify "lat")
+Answer:
+void replace(char base[], char from[], char to[])
+{
+	char *base_parser = base;
+	char *from_parser = from;
+	char *to_parser = to;
+	char *holder;
+
+	while (*base_parser != '\0') {
+		if (*base_parser == *from_parser) {
+			holder = base_parser;
+			while (*from_parser != '\0' && *base_parser == *from_parser) {
+				base_parser++;
+				from_parser++;
+			}
+			if (*from_parser == '\0') {
+				while (holder != base_parser) {
+					*holder++ = *to_parser++;
+				}
+				to_parser = to;
+			}
+			from_parser = from;
+		} else {
+			base_parser++;
+		}
+	}
+}
+
+EX. (2pts)
+Are strlen() and sizeof() of the two string variables below different?
+(run the code to test your assumption - be sure to load <string.h> to get access to strlen())
+Why is strlen() the same or different?
+Why is sizeof() the same or different?
+
+    char* string0 = "hello";
+    char string1[] = "hello";
+
+Answer:
+	The value of strlen and sizeof for the two varibales will always be different. sizeof in string0 returns how many bytes the pointer takes up. While strlen returns the amount of characters string0 refers to in memory (which in this case is 5). Strlen does the same operation to string1, returning 5. However, since we are declaring string1 to be an array of characters, as opposed to a pointer to a character, at compile time sizeof can safely determine the size in bytes that string1 will take up (which is 6, 5 characters for 'hello' and 1 for the null terminating byte '\0').
