@@ -142,3 +142,10 @@ EXPECTED OUTPUT:
 division: "/"
 
 PASSED? : PASSED
+========================================================================================================
+Input: "3.14159265 //is the value for pi
+using / /*Will result in an irrational number most likely */"
+EXPECTED OUTPUT:
+float: "3.14159265"
+word: "using"
+division: "/"
