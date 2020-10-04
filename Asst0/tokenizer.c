@@ -110,36 +110,36 @@ const struct C_token C_tokens[] = {
  * if they are a keyword or not.
  */
 const struct C_token C_keywords[] = {
-	{"if statement", "if"},
-	{"else statement", "else"},
-	{"do statement", "do"},
-	{"while statement", "while"},
-	{"for statement", "for"},
-	{"char type", "char"},
-	{"int type", "int"},
-	{"double type", "double"},
-	{"float type", "float"},
-	{"long type", "long"},
-	{"short type", "short"},
+	{"if keyword", "if"},
+	{"else keyword", "else"},
+	{"do keyword", "do"},
+	{"while keyword", "while"},
+	{"for keyword", "for"},
+	{"char keyword", "char"},
+	{"int keyword", "int"},
+	{"double keyword", "double"},
+	{"float keyword", "float"},
+	{"long keyword", "long"},
+	{"short keyword", "short"},
 	{"return keyword", "return"},
 	{"break keyword", "break"},
 	{"continue keyword", "continue"},
-	{"const type", "const"},
-	{"struct type", "struct"},
-	{"unsigned type", "unsigned"},
-	{"signed type", "signed"},
+	{"const keyword", "const"},
+	{"struct keyword", "struct"},
+	{"unsigned keyword", "unsigned"},
+	{"signed keyword", "signed"},
 	{"switch keyword", "switch"},
-	{"void type", "void"},
+	{"void keyword", "void"},
 	{"case keyword", "case"},
 	{"default keyword", "default"},
 	{"register keyword", "register"},
 	{"typedef keyword", "typedef"},
 	{"enum keyword", "enum"},
 	{"goto keyword", "goto"},
-	{"static type", "static"},
-	{"union type", "union"},
-	{"volatile type", "volatile"},
-	{"extern type", "extern"},
+	{"static keyword", "static"},
+	{"union keyword", "union"},
+	{"volatile keyword", "volatile"},
+	{"extern keyword", "extern"},
 	{"sizeof keyword", "sizeof"},
 };
 
@@ -423,9 +423,9 @@ void sanitize_word(struct input_token **token_node)
 }
 
 /*
- * This needs to be rewritten.
- * This will be split into different functions to
- * sanitize floats, octal, and decimal.
+ * Takes in a pointer to a pointer to an input node that holds a
+ * string starting with a number. Sanitize it such that it has no
+ * symbols or letters within it.
  */
 void sanitize_num(struct input_token **token_node)
 {
