@@ -18,7 +18,7 @@ float: "3.14159e-10"
 An implementation of malloc that detects common programming/usage errors.
 The interface for mymalloc is the same as malloc, `void *malloc(size_t x)` but this expands to
 `void *mymalloc(size_t x, __FILE__, __LINE__)` to give the user precise calls that caused problems
-during dynamic memory allocation.
+during dynamic memory allocation.<br/>
 Asst1 also includes memgrind.c that goes through multiple rigorous tests to ensure that mymalloc works
 as well, if not better, than original malloc. This includes tests that make sure you dont free addresses
 that are not pointers, freeing pointers that were not allocated by malloc, and redundant freeing of pointers.
