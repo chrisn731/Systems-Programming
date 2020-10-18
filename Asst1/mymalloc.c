@@ -6,26 +6,6 @@
 #define FATAL(x) die(x, filename, line_number)
 #define HEAP_SIZE 4096
 
-/*
- * Current thought process on what should be going down.
- *
- * ::mymalloc::
- * 	-> If user passes in 0 just return NULL
- * 	-> Now the main process of finding a block starts.
- * 	-> The heap always starts zero'd, so start at the top looking at header
- * 		data to see if the current data below there is in use.
- * 		-> If a block found is in use, increment the pointer and continue.
- * 		-> If an empty block is found prepare the block.
- * 	-> Once block is found we must:
- * 		1. Make sure we can actually store the size they ask for.
- * 		2. If we do have enough room:
- * 			set in use to 1, set block size, return ptr.
- * 	-> More steps to be added.
- *
- * ::myfree::
- * 	-> Need to add steps.
- */
-
 /* Struct will look something like this, subject to change */
 struct header_data {
 	unsigned short block_size: 15;
