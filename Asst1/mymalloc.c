@@ -140,7 +140,7 @@ void myfree(void *ptr, const char *filename, const int line_number)
 		FATAL("Attempting to free nonmalloc'd pointer");
 
 	block_ptr -= sizeof(*meta);
-	meta = (struct header_data *) (block_ptr -= sizeof(*meta));
+	meta = (struct header_data *) block_ptr;
 	if (meta->free)
 		FATAL("Attempting to redudantly free pointer");
 	else
