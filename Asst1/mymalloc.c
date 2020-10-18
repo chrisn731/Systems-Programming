@@ -141,7 +141,7 @@ void myfree(void *ptr, const char *filename, const int line_number)
 
 	block_ptr -= sizeof(*meta);
 	meta = (struct header_data *) (block_ptr -= sizeof(*meta));
-	if (!meta->free)
+	if (meta->free)
 		FATAL("Attempting to redudantly free pointer");
 	else
 		meta->free = 1;
