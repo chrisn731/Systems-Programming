@@ -74,7 +74,7 @@ void *mymalloc(size_t size, const char *filename, const int line_number)
 
 	next_block = (struct header_data *) (heap_byte + sizeof(*meta) + size);
 	next_block->free = 1;
-	next_block->block_size = meta->block_size - size;
+	next_block->block_size = meta->block_size - size - sizeof(*next_block);
 	meta->free = 0;
 	meta->block_size = size;
 	return (void *) (heap_byte + sizeof(*meta));
@@ -131,7 +131,7 @@ static void coalesce_blocks(void)
 		heap_byte += first_meta->block_size + sizeof(*first_meta);
 		if (first_meta->free) {
 			next_meta = (struct header_data *) heap_byte;
-			while (next_meta->free) {
+			while (next_meta->free && heap_byte < heap_boundary) {
 				first_meta->block_size += next_meta->block_size + sizeof(*next_meta);
 				heap_byte += next_meta->block_size + sizeof(*next_meta);
 				next_meta = (struct header_data *) heap_byte;
