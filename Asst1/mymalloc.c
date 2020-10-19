@@ -64,7 +64,7 @@ void *mymalloc(size_t size, const char *filename, const int line_number)
 	 */
 	do {
 		meta = (struct header_data *) heap_byte;
-		if (meta->free && (meta->block_size >= (size + sizeof(*meta))))
+		if (meta->free && meta->block_size >= size)
 			break;
 		heap_byte += (sizeof(*meta) + meta->block_size);
 	} while (heap_byte < heap_boundary);
@@ -72,9 +72,12 @@ void *mymalloc(size_t size, const char *filename, const int line_number)
 	if (heap_byte >= heap_boundary)
 		FATAL("Heap out of memory.");
 
-	next_block = (struct header_data *) (heap_byte + sizeof(*meta) + size);
-	next_block->free = 1;
-	next_block->block_size = meta->block_size - size - sizeof(*next_block);
+	/* If our block is bigger than our requested size we need to split the block */
+	if (meta->block_size > size) {
+		next_block = (struct header_data *) (heap_byte + sizeof(*meta) + size);
+		next_block->free = 1;
+		next_block->block_size = meta->block_size - size - sizeof(*next_block);
+	}
 	meta->free = 0;
 	meta->block_size = size;
 	return (void *) (heap_byte + sizeof(*meta));
