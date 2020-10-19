@@ -13,6 +13,7 @@ struct header_data {
 };
 #define BYTES_TO_NEXT_META(size) (sizeof(struct header_data) + (size))
 #define HEADER_DATA(x) (struct header_data *)(x)
+#define HEADER_SIZE (sizeof(struct header_data))
 
 static char myblock[HEAP_SIZE] = {0};
 
@@ -128,8 +129,8 @@ static void coalesce_blocks(void)
 	do {
 		first_meta = (struct header_data *) heap_byte;
 		heap_byte += first_meta->block_size + sizeof(*first_meta);
-		next_meta = (struct header_data *) heap_byte;
 		if (first_meta->free) {
+			next_meta = (struct header_data *) heap_byte;
 			while (next_meta->free) {
 				first_meta->block_size += next_meta->block_size + sizeof(*next_meta);
 				heap_byte += next_meta->block_size + sizeof(*next_meta);
