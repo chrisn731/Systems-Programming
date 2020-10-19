@@ -4,19 +4,19 @@ Using opendir() and readdir(), open the current directory and output all filenam
 Answer:
 int main(int argc, char **argv)
 {
-	struct dirent *de;
-	DIR *dirp;
+    struct dirent *de;
+    DIR *dirp;
 
-	if (!(dr = opendir(".")) {
-		printf("Failed opening current directory\n");
-		return 1;
-	}
+    if (!(dr = opendir(".")) {
+        printf("Failed opening current directory\n");
+        return 1;
+    }
 
-	while ((de = readdir(de)) != NULL) {
-		printf("%s\n", de->d_name);
-	}
-	closedir(dirp);
-	return 0;
+    while ((de = readdir(de)) != NULL)
+        printf("%s\n", de->d_name);
+
+    closedir(dirp);
+    return 0;
 }
 
 1. (4pts.)
@@ -25,21 +25,21 @@ Parse the dirent struct to see if an entry is a directory or a file. If it is a 
 Answer:
 int main(int argc, char **argv)
 {
-	struct dirent *de;
-	DIR *dirp;
+    struct dirent *de;
+    DIR *dirp;
 
-	if (!(dr = opendir(".")) {
-		printf("Failed opening current directory\n");
-		return 1;
-	}
-	
-	while ((de = readdir(de)) != NULL) {
-		if (de->d_type == DT_DIR)
-			printf("./");
-		printf("%s\n", de->d_name);
-	}
-	closedir(dirp);
-	return 0;
+    if (!(dr = opendir(".")) {
+        printf("Failed opening current directory\n");
+        return 1;
+    }
+    
+    while ((de = readdir(de)) != NULL) {
+        if (de->d_type == DT_DIR)
+            printf("./");
+        printf("%s\n", de->d_name);
+    }
+    closedir(dirp);
+    return 0;
 }
 
 2. (3pts.)
@@ -48,62 +48,66 @@ Open a file handle to each file, use lseek to determine the file's size in bytes
 Answer:
 int main(int argc, char **argv)
 {
-	struct dirent *de;
-	DIR *dirp;
-	int file_size, fd;
+    struct dirent *de;
+    DIR *dirp;
+    int file_size, fd;
 
-	if (!(dr = opendir(".")) {
-		printf("Failed opening current directory\n");
-		return 1;
-	}
-	
-	while ((de = readdir(de)) != NULL) {
-		if (de->d_type != DT_DIR) {
-			fd = open(de->d_name, O_RDONLY);
-			file_size = lseek(fd, 0, SEEK_END);
-			if (fize_size < 0)
-				printf("Error getting file size of %s\n", de->d_name);
-			else
-				printf("%s: %d bytes\n", de->d_name, file_size);
-			close(fd);
-		}
-	}
-	closedir(dirp);
-	return 0;
+    if (!(dr = opendir(".")) {
+        printf("Failed opening current directory\n");
+        return 1;
+    }
+    
+    while ((de = readdir(de)) != NULL) {
+        if (de->d_type != DT_DIR) {
+            fd = open(de->d_name, O_RDONLY);
+	    if (fd < 0) {
+		printf("Error opening %s\n", de->d_name);
+	    } else {
+            	file_size = lseek(fd, 0, SEEK_END);
+            	if (fize_size < 0)
+                    printf("Error getting file size of %s\n", de->d_name);
+            	else
+                    printf("%s: %d bytes\n", de->d_name, file_size);
+		close(fd);
+	    }
+        }
+    }
+    closedir(dirp);
+    return 0;
 }
-		
+        
 
 EX. (3pts.)
 Add a color formatting element. Print out executable binaries in bold red, regular files in light green, directories in light blue and anything else in white. Be careful - changing the console printout color is a durable operation that is global in scope, so once you change the color, anything printed from anywhere in your Process will be in in that color. It is a good practice to always presume the color is incorrectly set before you print and to set it to what you want before you print anywhere (especially in informational or error outputs). You will also need to find a way to determine if a file is executable or not
 Answer:
 int main(int argc, char **argv)
 {
-	struct dirent *de;
-	DIR *dirp;
-	const char *colorcode;
-	const char *reset = "\033[0m";
+    struct dirent *de;
+    DIR *dirp;
+    const char *colorcode;
+    const char *reset = "\033[0m";
 
-	if (!(dr = opendir(".")) {
-		printf("Failed opening current directory\n");
-		return 1;
-	}
-	
-	while ((de = readdir(de)) != NULL) {
-		if (de->d_type == DT_DIR) {
-			colorcode = "\033[0;36m";
-		} else if (de->d_type == DT_REG) {
-			if (!access(de->d_name, X_OK)) {
-				colorcode = "\033[1;31m";
-			} else {
-				colorcode = "\033[0;32m";
-			}
-		} else {
-			colorcode = "\033[0m";
-		}
-		printf(colorcode);
-		printf("%s\n", de->d_name);
-		printf(reset);
-	}
-	closedir(dirp);
-	return 0;
+    if (!(dr = opendir(".")) {
+        printf("Failed opening current directory\n");
+        return 1;
+    }
+    
+    while ((de = readdir(de)) != NULL) {
+	printf(reset);
+        if (de->d_type == DT_DIR) {
+            colorcode = "\033[0;36m";
+        } else if (de->d_type == DT_REG) {
+            if (!access(de->d_name, X_OK)) {
+                colorcode = "\033[1;31m";
+            } else {
+                colorcode = "\033[0;32m";
+            }
+        } else {
+            colorcode = "\033[0m";
+        }
+        printf(colorcode);
+        printf("%s\n", de->d_name);
+    }
+    closedir(dirp);
+    return 0;
 }
