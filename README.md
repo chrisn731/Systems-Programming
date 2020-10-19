@@ -28,8 +28,8 @@ ________________________________________________________________________________
 | 	      | 			       | 	     |
 | Header Data | User-Mutable space             | Header Data | User-Mutable Space ...
 |_____________|________________________________|_____________|____________________
-^             ^- pointer returned to user.
-|
+^             ^
+| 	      |- pointer returned to user.
 |- Header uses 16 bits, 1 bit (0/1) for if block is free, remaining 15 for block size.
 ```
 
