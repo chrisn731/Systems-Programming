@@ -72,15 +72,18 @@ void *mymalloc(size_t size, const char *filename, const int line_number)
 	if (heap_byte >= heap_boundary)
 		FATAL("Heap out of memory.");
 
+	/* Heap byte now becomes the mutable memory we return to the user. */
+	heap_byte += sizeof(*meta);
+
 	/* If our block is bigger than our requested size we need to split the block */
 	if (meta->block_size > size) {
-		next_block = (struct header_data *) (heap_byte + sizeof(*meta) + size);
+		next_block = (struct header_data *) (heap_byte + size);
 		next_block->free = 1;
 		next_block->block_size = meta->block_size - size - sizeof(*next_block);
 	}
 	meta->free = 0;
 	meta->block_size = size;
-	return (void *) (heap_byte + sizeof(*meta));
+	return (void *) heap_byte;
 }
 
 /*
