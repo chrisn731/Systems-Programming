@@ -32,7 +32,7 @@ int main(int argc, char **argv)
         printf("Failed opening current directory\n");
         return 1;
     }
-    
+
     while ((de = readdir(de)) != NULL) {
         if (de->d_type == DT_DIR)
             printf("./");
@@ -52,19 +52,19 @@ int main(int argc, char **argv)
     DIR *dirp;
     int file_size, fd;
 
-    if (!(dr = opendir(".")) {
+    if (!(dirp = opendir("."))) {
         printf("Failed opening current directory\n");
         return 1;
     }
-    
-    while ((de = readdir(de)) != NULL) {
+
+    while ((de = readdir(dirp)) != NULL) {
         if (de->d_type != DT_DIR) {
             fd = open(de->d_name, O_RDONLY);
 	    if (fd < 0) {
 		printf("Error opening %s\n", de->d_name);
 	    } else {
             	file_size = lseek(fd, 0, SEEK_END);
-            	if (fize_size < 0)
+            	if (file_size < 0)
                     printf("Error getting file size of %s\n", de->d_name);
             	else
                     printf("%s: %d bytes\n", de->d_name, file_size);
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
     closedir(dirp);
     return 0;
 }
-        
+
 
 EX. (3pts.)
 Add a color formatting element. Print out executable binaries in bold red, regular files in light green, directories in light blue and anything else in white. Be careful - changing the console printout color is a durable operation that is global in scope, so once you change the color, anything printed from anywhere in your Process will be in in that color. It is a good practice to always presume the color is incorrectly set before you print and to set it to what you want before you print anywhere (especially in informational or error outputs). You will also need to find a way to determine if a file is executable or not
@@ -87,13 +87,13 @@ int main(int argc, char **argv)
     const char *colorcode;
     const char *reset = "\033[0m";
 
-    if (!(dr = opendir(".")) {
+    if (!(dirp = opendir("."))) {
         printf("Failed opening current directory\n");
         return 1;
     }
-    
-    while ((de = readdir(de)) != NULL) {
-	printf(reset);
+
+    while ((de = readdir(dirp)) != NULL) {
+	printf("%s", reset);
         if (de->d_type == DT_DIR) {
             colorcode = "\033[0;36m";
         } else if (de->d_type == DT_REG) {
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
         } else {
             colorcode = "\033[0m";
         }
-        printf(colorcode);
+        printf("%s", colorcode);
         printf("%s\n", de->d_name);
     }
     closedir(dirp);
