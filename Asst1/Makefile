@@ -25,9 +25,6 @@ CFLAGS += -Wundef
 CFLAGS += -Wunreachable-code
 CFLAGS += -Wunused-but-set-parameter
 CFLAGS += -Wwrite-strings
-CFLAGS += -fsanitize=address
-CFLAGS += -fsanitize=leak
-CFLAGS += -fno-omit-frame-pointer
 
 all: memgrind
 
@@ -35,4 +32,4 @@ memgrind: memgrind.c mymalloc.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 debug: test.c mymalloc.c
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -g -o $@ $^
