@@ -7,12 +7,12 @@ int main(int argc, char **argv)
     struct dirent *de;
     DIR *dirp;
 
-    if (!(dr = opendir(".")) {
+    if (!(dirp = opendir("."))) {
         printf("Failed opening current directory\n");
         return 1;
     }
 
-    while ((de = readdir(de)) != NULL)
+    while ((de = readdir(dirp)) != NULL)
         printf("%s\n", de->d_name);
 
     closedir(dirp);
@@ -28,12 +28,12 @@ int main(int argc, char **argv)
     struct dirent *de;
     DIR *dirp;
 
-    if (!(dr = opendir(".")) {
+    if (!(dirp = opendir("."))) {
         printf("Failed opening current directory\n");
         return 1;
     }
 
-    while ((de = readdir(de)) != NULL) {
+    while ((de = readdir(dirp)) != NULL) {
         if (de->d_type == DT_DIR)
             printf("./");
         printf("%s\n", de->d_name);
@@ -63,10 +63,10 @@ int main(int argc, char **argv)
 	    if (fd < 0) {
 		printf("Error opening %s\n", de->d_name);
 	    } else {
-            	file_size = lseek(fd, 0, SEEK_END);
-            	if (file_size < 0)
+		file_size = lseek(fd, 0, SEEK_END);
+		if (file_size < 0)
                     printf("Error getting file size of %s\n", de->d_name);
-            	else
+		else
                     printf("%s: %d bytes\n", de->d_name, file_size);
 		close(fd);
 	    }
