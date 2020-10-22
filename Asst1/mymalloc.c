@@ -4,16 +4,13 @@
 #include "mymalloc.h"
 
 #define FATAL(x) die(x, filename, line_number)
+#define WARN(x) warn(x, filename, line_number)
 #define HEAP_SIZE 4096
 
-/* Struct will look something like this, subject to change */
 struct header_data {
 	unsigned short block_size: 15;
 	unsigned short free: 1;
 };
-#define BYTES_TO_NEXT_META(size) (sizeof(struct header_data) + (size))
-#define HEADER_DATA(x) (struct header_data *)(x)
-#define HEADER_SIZE (sizeof(struct header_data))
 
 static char myblock[HEAP_SIZE] = {0};
 
@@ -26,6 +23,11 @@ static void die(const char *err, const char *fname, const int line_num)
 {
 	fprintf(stderr, "::[File: %s: Line: %d] Error: %s\n", fname, line_num, err);
 	exit(1);
+}
+
+static void warn(const char *warning, const char *fname, const int line_num)
+{
+	fprintf(stderr, "::[File: %s: Line %d] Warn: %s\n", fname, line_num, warning);
 }
 
 /*
@@ -54,7 +56,7 @@ void *mymalloc(size_t size, const char *filename, const int line_number)
 	if (size == 0)
 		return NULL;
 
-	/* The first 2 bytes of the heap should NEVER be 0 bytes */
+	/* If the first 2 bytes of our heap are 0 bytes, then we haven't initialized */
 	if (!myblock[0] && !myblock[1])
 		initialize_heap();
 
@@ -66,20 +68,22 @@ void *mymalloc(size_t size, const char *filename, const int line_number)
 		meta = (struct header_data *) heap_byte;
 		if (meta->free && meta->block_size >= size)
 			break;
-		heap_byte += (sizeof(*meta) + meta->block_size);
+		heap_byte += sizeof(*meta) + meta->block_size;
 	} while (heap_byte < heap_boundary);
 
-	if (heap_byte >= heap_boundary)
-		FATAL("Heap out of memory.");
+	if (heap_byte >= heap_boundary) {
+		WARN("Heap out of memory.");
+		return NULL;
+	}
 
-	/* Heap byte now becomes the mutable memory we return to the user. */
+	/* Heap byte now becomes the pointer to mutable memory we return to the user. */
 	heap_byte += sizeof(*meta);
 
 	/* If our block is bigger than our requested size we need to split the block */
 	if (meta->block_size > size) {
 		next_block = (struct header_data *) (heap_byte + size);
 		next_block->free = 1;
-		next_block->block_size = meta->block_size - size - sizeof(*next_block);
+		next_block->block_size = meta->block_size - (size + sizeof(*next_block));
 	}
 	meta->free = 0;
 	meta->block_size = size;
@@ -129,6 +133,7 @@ static int non_mymalloc_ptr(void *ptr)
 static void coalesce_blocks(void)
 {
 	struct header_data *first_meta, *next_meta;
+	unsigned int free_block_size;
 	const char *const heap_boundary = myblock + HEAP_SIZE;
 	char *heap_byte = myblock;
 
@@ -138,8 +143,9 @@ static void coalesce_blocks(void)
 		if (first_meta->free) {
 			next_meta = (struct header_data *) heap_byte;
 			while (next_meta->free && heap_byte < heap_boundary) {
-				first_meta->block_size += next_meta->block_size + sizeof(*next_meta);
-				heap_byte += next_meta->block_size + sizeof(*next_meta);
+				free_block_size = next_meta->block_size + sizeof(*next_meta);
+				first_meta->block_size += free_block_size;
+				heap_byte += free_block_size;
 				next_meta = (struct header_data *) heap_byte;
 			}
 		}

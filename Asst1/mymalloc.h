@@ -1,7 +1,7 @@
 #ifndef _MY_MALLOC_H
 #define _MY_MALLOC_H
 
-#include <stdlib.h> /* Only here so the compiler knows what size_t is */
+#include <stdlib.h> /* size_t */
 
 #define malloc(x) mymalloc(x, __FILE__, __LINE__)
 #define free(x) myfree(x, __FILE__, __LINE__)
