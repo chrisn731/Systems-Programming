@@ -1,0 +1,45 @@
+﻿TEST CASES:
+
+OVERVIEW:
+   * These cases are primarily designed to test the myfree() function, ensuring that it will combine adjacent
+     free blocks by utilizing the coalesce_blocks(void) helper function, as well as runtime of operations. 
+   * Both workloads should not return any errors.
+-------------------------------------------------------------------------------------------------------------------------
+workload_D
+   Summary:
+   * This workload is designed to perfectly fill the entire heap with equal sized chunks. In our case, we wanted 
+     the number of mallocs to be similar to the other workloads for better time comparisons, so we used 128 in total 
+     as it is a factor of 4096. 
+   * First, the heap breaks off into 32 chunks of size 128 bytes (each chunk only has 126 bytes available, as 2 
+     are designated for metadata). Each chunk is stored into a char* array of length 32, with each element 
+     corresponding to its respective malloc call ([0] -> 1st malloc, [1]-> 2nd malloc, [2]-> 3rd malloc...)
+   * Starting from the end of the array (and hence the end of the heap), we free a region of memory and replace
+     it with 3 smaller chunks, all equal in length. Since each block was 128 bytes, (int)128/3 = 42 for each smaller
+     block. To make sure we fit into 128 bytes, we subtract 2 for the metadata. So each block is broken up into
+     40 usable bytes. 
+   * After each block is split into 3, we should now have 96 blocks and a total of 4032 bytes used 
+     (as close as possible to 4096). Now we free everything. 
+
+
+Purpose:
+   * We wanted to test filling the entire heap to its maximum capacity and traversing it to see its effect on runtime. 
+     Since this function involved malloc-ing further down the heap with each call and freeing backwards, we found 
+     this function to be most comparable to workload_B. For this reason, we used that as our benchmark. We found 
+     that the average runtime of D to be higher than B (which was expected); however, they were quite close, 
+     and most likely only differed as workload_D has two loops for malloc while workload_B has one. This shows us that 
+     runtime is dependent on the number of mallocs and frees and their order, rather than malloc sizes. 
+-------------------------------------------------------------------------------------------------------------------------
+workload_E
+   Summary:
+   * Mallocs 120 one-byte chunks, storing each pointer into an element of a char* array of size 120. 
+   * Starting from the middle of the array, we free 2 chunks at a time moving towards both ends. So with array size 120, 
+     we free [59] and [60] first, then [58] and [61], etc, until everything is freed.
+   * Finally, we malloc one big chunk of size 4094 to fill up the entire heap to check that there’s only 1 free chunk.
+        
+   Purpose:
+   * This function is designed to ensure that our implementation of free() is working fully as intended. 
+     When freeing from the center, there will always be adjacent free blocks that have to be combined; 
+     the first two blocks we free will only need to be combined once (the first freed block has nothing to combine with), 
+     while every other two frees will perform a combine operation twice - one for each call. The final operation 
+     of creating one big chunk makes sure that the heap ends with what we started with - one giant block with a two-byte
+     metadata. If this call had failed, then we know that myfree() did not work properly.
