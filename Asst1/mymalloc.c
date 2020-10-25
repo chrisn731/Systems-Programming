@@ -3,7 +3,6 @@
 
 #include "mymalloc.h"
 
-#define FATAL(x) die(x, filename, line_number)
 #define WARN(x) warn(x, filename, line_number)
 
 /* Only change this value to configure heap size */
@@ -16,17 +15,6 @@ struct header_data {
 };
 
 static char myblock[HEAP_SIZE] = {0};
-
-/*
- * Purpose: Error exit function. Prints the error as well as the file and line number
- * of where the error occured.
- * Return Value: Does not return.
- */
-static void die(const char *err, const char *fname, const int line_num)
-{
-	fprintf(stderr, "::[File: %s: Line: %d] Error: %s\n", fname, line_num, err);
-	exit(1);
-}
 
 /*
  * Purpose: Print warning message to user that something that has gone wrong, but
@@ -68,10 +56,7 @@ void *mymalloc(size_t size, const char *filename, const int line_number)
 	if (!myblock[0] && !myblock[1])
 		initialize_heap();
 
-	/*
-	 * go through the heap to find an empty block that can fit the block size
-	 * and the meta data for the block that will be after.
-	 */
+	/* Go through the heap to find an empty block that can fit the requested size. */
 	do {
 		meta = (struct header_data *) heap_byte;
 		if (meta->free && meta->block_size >= size)
