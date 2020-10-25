@@ -15,7 +15,8 @@
 #define NUM_SMALL_CHUNKS 96
 
 /*
- * Malloc 1 byte and immediately free it 120 times
+ * Purpose: Malloc 1 byte and immediately free it 120 times
+ * Return value: None.
  */
 static void workload_A(void) 
 {
@@ -27,7 +28,8 @@ static void workload_A(void)
 }
 
 /*
- * Malloc 1 byte, store it in a pointer array, and free them all after looping 120 times
+ * Purpose: Malloc 1 byte, store it in a pointer array, and free them all after looping 120 times
+ * Return value: None.
  */
 static void workload_B(void)
 {
@@ -50,10 +52,8 @@ static void workload_C(void)
 	int num_mallocs = 0;
 	int i, num, use_malloc;
 	
-	/* 
-	 * Create a random num in the range of 1-100. Malloc if num < 50; free otherwise 
-	 * HOWEVER: if there's nothing to free, use malloc. If we can't malloc anymore, use free.
-	 */
+	/* Create a random num in the range of 1-100. Malloc if num < 50; free otherwise 
+	 * HOWEVER: if there's nothing to free, use malloc. If we can't malloc anymore, use free */
 	for (i = 0; i < SIZE_C; i++) {
 		num = (rand() % 100) + 1;
 		if (num < 50) {	
@@ -77,6 +77,7 @@ static void workload_C(void)
  * at a time, replacing that block with smaller ones. How does the running time compare
  * to workload B?
  * Total 128 mallocs - 32 big chunks and 96 smaller chunks
+ * Return value: None.
  */
 static void workload_D(void)
 {
@@ -85,10 +86,8 @@ static void workload_D(void)
 	int i, j, k = 0;
 	int SM_L_ratio = NUM_SMALL_CHUNKS / NUM_LARGE_CHUNKS;
 
-	/* 
-	 * NUM_LARGE_CHUNKS chunks each with size (4096 / NUM_LARGE_CHUNKS) - 2
-	 * -2 accounts for 2 byte meta data per block, so we perfectly fill 4096 bytes
-	 */
+	/* NUM_LARGE_CHUNKS chunks each with size (4096 / NUM_LARGE_CHUNKS) - 2
+	 * -2 accounts for 2 byte meta data per block, so we perfectly fill 4096 bytes */
 	for (i = 0; i < NUM_LARGE_CHUNKS; i++) {
 		large_chunks[i] = malloc(((4096 / NUM_LARGE_CHUNKS) - 2) * sizeof(char));
 	}
@@ -112,13 +111,15 @@ static void workload_D(void)
 /* 
  * Purpose: ensures that free() combines adjacent free blocks and checks its impact
  * on runtime
+ * Return value: None.
  */
 static void workload_E(void)
 {
 	char *arr[SIZE_E];
 	int i, j, k = 1;
+	char *ptr;
 
-	for (i = 0; i < SIZE_B; i++) {
+	for (i = 0; i < SIZE_E; i++) {
 		arr[i] = malloc(sizeof(char));
 	}
 
@@ -127,6 +128,9 @@ static void workload_E(void)
 		free(arr[j+k]);
 		k += 2;
 	}
+
+	ptr = malloc(4094 * sizeof(char));
+	free(ptr);
 }
 
 int main(void)

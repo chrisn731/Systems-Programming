@@ -5,8 +5,11 @@
 
 #define FATAL(x) die(x, filename, line_number)
 #define WARN(x) warn(x, filename, line_number)
+
+/* Only change this value to configure heap size */
 #define HEAP_SIZE 4096
 
+/* Data structure used to access our values stored in our header data. */
 struct header_data {
 	unsigned short block_size: 15;
 	unsigned short free: 1;
@@ -25,9 +28,14 @@ static void die(const char *err, const char *fname, const int line_num)
 	exit(1);
 }
 
+/*
+ * Purpose: Print warning message to user that something that has gone wrong, but
+ * is not fatal to the running process.
+ * Return Value: None.
+ */
 static void warn(const char *warning, const char *fname, const int line_num)
 {
-	fprintf(stderr, "::[File: %s: Line %d] Warn: %s\n", fname, line_num, warning);
+	fprintf(stderr, "::[File: %s: Line %d] WARNING: %s\n", fname, line_num, warning);
 }
 
 /*
@@ -97,7 +105,7 @@ void *mymalloc(size_t size, const char *filename, const int line_number)
 static int not_in_range(void *ptr)
 {
 	char *ptr_to_free = (char *) ptr;
-	char *heap_boundary = myblock + HEAP_SIZE;
+	const char *const heap_boundary = myblock + HEAP_SIZE;
 
 	return (ptr_to_free < myblock) || (ptr_to_free >= heap_boundary);
 }
@@ -160,23 +168,29 @@ static void coalesce_blocks(void)
 void myfree(void *ptr, const char *filename, const int line_number)
 {
 	struct header_data *meta;
+	const char *err = NULL;
 	char *block_ptr = (char *) ptr;
 
 	/* Check main 3 error cases */
-	if (!block_ptr)
-		FATAL("Attempting to free NULL pointer.");
-	if (not_in_range(ptr))
-		FATAL("Attempting to free pointer not in range.");
-	if (non_mymalloc_ptr(ptr))
-		FATAL("Attempting to free nonmalloc'd pointer");
+	if (!ptr)
+		err = "Attempting to free NULL pointer.";
+	else if (not_in_range(ptr))
+		err = "Attempting to free pointer not in range.";
+	else if (non_mymalloc_ptr(ptr))
+		err = "Attempting to free nonmalloc'd pointer.";
+	if (err) {
+		WARN(err);
+		return;
+	}
 
 	block_ptr -= sizeof(*meta);
 	meta = (struct header_data *) block_ptr;
 	/* check if the block has been freed already */
-	if (meta->free)
-		FATAL("Attempting to redudantly free pointer");
-	else
-		meta->free = 1;
+	if (meta->free) {
+		WARN("Attempting to redudantly free pointer.");
+		return;
+	}
+	meta->free = 1;
 
 	/* Go through the heap and combine free'd blocks */
 	coalesce_blocks();
