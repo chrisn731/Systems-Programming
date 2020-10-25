@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/time.h>
 
 #include "mymalloc.h"
 
@@ -136,7 +137,7 @@ static void workload_E(void)
 
 int main(void)
 {
-	clock_t start, end;
+	struct timeval start, end;
 	double total_time;
 	double data[50][5];
 	void (*fptr[5])(void) = {workload_A, workload_B, workload_C, workload_D, workload_E};
@@ -146,18 +147,19 @@ int main(void)
 	srand(time(0));
 	for (i = 0; i < 50; i++) {
 		for (j = 0; j < 5; j++) {
-			start = clock();
+			gettimeofday(&start, NULL);
 			fptr[j]();
-			end = clock();
-			data[i][j] = (double)(end - start) / CLOCKS_PER_SEC;
+			gettimeofday(&end, NULL);
+			data[i][j] = (double)(end.tv_usec - start.tv_usec) / 1000000 +
+				(double) (end.tv_sec - start.tv_sec);
 		}
 	}
 
 	for (j = 0; j < 5; j++) {
 		total_time = 0;
-		for (i = 0; i < 50; i++) {
+		for (i = 0; i < 50; i++)
 			total_time += data[i][j];
-		}
+
 		printf("Workload_%c mean runtime: %f\n", ('A' + j), (total_time / 50));
 	}
 

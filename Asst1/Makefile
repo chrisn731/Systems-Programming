@@ -30,6 +30,3 @@ all: memgrind
 
 memgrind: memgrind.c mymalloc.c
 	$(CC) $(CFLAGS) -o $@ $^
-
-debug: test.c mymalloc.c
-	$(CC) $(CFLAGS) -g -o $@ $^
