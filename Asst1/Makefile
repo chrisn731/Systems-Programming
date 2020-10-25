@@ -30,3 +30,6 @@ all: memgrind
 
 memgrind: memgrind.c mymalloc.c
 	$(CC) $(CFLAGS) -o $@ $^
+
+clean:
+	rm -f *.o memgrind
