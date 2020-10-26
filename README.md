@@ -1,11 +1,11 @@
 # Systems-Programming
 CS 214 - Systems Programming : A story of Chris Naporlee and Michael Nelli take on Zednenem.
-Each assignment directory contains a `README.pdf` that contains useful information on each project<br\>
-and how it works.
+Each assignment directory contains a `README.pdf` that contains useful in-depth descriptions and design<br/>
+explanations of each project.
 
 ## Asst0 - String Tokenizer
 A string tokenizer written in C that takes in a string as a command line argument and parses it for words,
-numbers, and symbols. For example,
+numbers, and symbols. For example:
 ```
 ./tokenizer "array[xyz ] += pi 3.14159e-10"
 word: "array"
