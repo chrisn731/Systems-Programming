@@ -1,6 +1,6 @@
 # Systems-Programming
 CS 214 - Systems Programming : A story of Chris Naporlee and Michael Nelli take on Zednenem.
-Each assignment directory contains a `README.pdf` that contains useful in-depth descriptions and design<br/>
+Each assignment directory contains a `README.pdf` that contains useful in-depth descriptions and design
 explanations of each project.
 
 ## Asst0 - String Tokenizer
@@ -19,7 +19,7 @@ float: "3.14159e-10"
 ## Asst1 - ++Malloc
 An implementation of malloc that detects common programming/usage errors.
 The interface for mymalloc (which is included in `mymalloc.h` is the same as malloc,
-but has parameters for filenames and line numbers for easier debugging.<br/>
+but has parameters for filenames and line numbers for easier debugging:
 `void *mymalloc(size_t x, const char *filename, const int line_number)`<br/>
 Asst1 also includes `memgrind.c` that goes through multiple rigorous tests to ensure that mymalloc works through
 different types of workload stress.
