@@ -19,12 +19,16 @@ float: "3.14159e-10"
 ## Asst1 - ++Malloc
 ### MyMalloc
 An implementation of malloc that detects common programming/usage errors.
-The interface for mymalloc (which is included in `mymalloc.h`) is the similar as malloc,
-but has parameters for filenames and line numbers for easier debugging:<br/>
+The interface for mymalloc is the similar as malloc, but has parameters for filenames and line numbers
+for easier debugging:<br/>
 `void *mymalloc(size_t x, const char *filename, const int line_number)`
+
 ### MyFree
 Similarly, to free blocks given by mymalloc use:<br/>
 `void myfree(void *ptr, const char *filename, const int line_number)`<br/>
+The advantage to using this is that it catches common mistakes such as: redunant freeing of
+pointers, attempting to free NULL pointers, or attempting to free pointers not given by mymalloc.
+
 ### Memgrind
 Asst1 also includes `memgrind.c` that goes through multiple rigorous tests to ensure that mymalloc works through
 different types of workload stress.
