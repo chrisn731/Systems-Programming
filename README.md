@@ -21,7 +21,7 @@ float: "3.14159e-10"
 An implementation of malloc that detects common programming/usage errors.
 The interface for mymalloc is the similar as malloc, but has parameters for filenames and line numbers
 for easier debugging:<br/>
-`void *mymalloc(size_t x, const char *filename, const int line_number)`
+`void *mymalloc(size_t x, const char *filename, const int line_number)`<br/>
 Mymalloc uses the following model to keep track of each block size:
 ```
 __________________________________________________________________________________
