@@ -224,7 +224,7 @@ void print_token(const char *type, const char *token)
 	if (type != NULL)
 		printf("%s: \"%s\"\n", type, token);
 	else
-		printf("Error on finding type for %s\n", token);
+		printf("Error on finding type for: \"%s\"\n", token);
 }
 
 /*
