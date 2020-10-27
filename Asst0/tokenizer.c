@@ -531,8 +531,9 @@ void sanitize_symbol(struct input_token **token_node)
 			toklen = 1;
 		break;
 
-	case '0':
+	/* If we dont know the symbol, just split it off. */
 	default:
+		toklen = 1;
 		break;
 	}
 	/* If our symbol doesnt take up the full length of the string. Then split it */
