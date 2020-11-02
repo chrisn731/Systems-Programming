@@ -1,0 +1,53 @@
+0. (2pts.)
+ Write some code that iterates from 1 to 10 and prints out each integer along the way.
+
+1. (2pts.)
+ Copy that code in to a void*/void* function. (test it)
+
+2. (2pts.)
+ Malloc an int pointer, set it, pass in to your function as a void* and inside your function, cast it, deference it and print that integer out before each iteration of the counter specified in part 0.
+
+3. (2pts.)
+ Add code to run five iterations of your void*/void* counting function as a pthread. Assign each of your threads a separate 'id' by passing a each a pointer to a different integer as its argument using pthread_create. Be sure to pthread_join() for all your threads. Run the code a few times and observe the output.
+  (*be sure to deallocate/destroy all dyamically-allocated memory and library structures)
+
+EX. (2pts.)
+Create a single mutex and add a pointer to it to the argument of each thread. Modify the threads to have them pthread_mutex_lock() before entering the print loop and pthread_mutex_unlock after exiting it. Be sure to note the difference in your output.
+
+Answer:
+struct thread_data {
+        pthread_mutex_t *mut;
+        int thread_id;
+};
+
+void *func(void *arg)
+{
+        struct thread_data *arg_data = (struct thread_data *) arg;
+        int i;
+
+        pthread_mutex_lock(arg_data->mut);
+        for (i = 1; i <= 10; i++)
+                printf("%d: %d\n", arg_data->thread_id, i);
+        pthread_mutex_unlock(arg_data->mut);
+
+        return NULL;
+}
+
+int main(void)
+{
+        pthread_t threads[5];
+        pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+        struct thread_data arg_data[5];
+        int i;
+
+        for (i = 0; i < 5; i++) {
+                arg_data[i].mut = &mut;
+                arg_data[i].thread_id = i + 1;
+                pthread_create(&threads[i], NULL, func, &arg_data[i]);
+        }
+
+        for (i = 0; i < 5; i++)
+                pthread_join(threads[i], NULL);
+
+        return 0;
+}
