@@ -36,10 +36,11 @@ void *func(void *arg)
 int main(void)
 {
         pthread_t threads[5];
-        pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_t mut;
         struct thread_data arg_data[5];
         int i;
 
+	pthread_mutex_init(&mut, NULL);
         for (i = 0; i < 5; i++) {
                 arg_data[i].mut = &mut;
                 arg_data[i].thread_id = i + 1;
