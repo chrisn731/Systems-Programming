@@ -13,8 +13,9 @@ Asst 2 Notes:
 				holding filename and total number of tokens scanned. Then unlock
 			-> else print an error message and return.
 		-> Start tokenzizing the file
-			-> Quote from pdf: "All files will consist of ASCII text. 
-				All tokens will be space-separated or newline-separated. Tokens will							consist of alphabetic characters and hyphens. Ignore all punctuation 
+			-> Quote from pdf: "All files will consist of ASCII text.
+				All tokens will be space-separated or newline-separated. Tokens will
+				consist of alphabetic characters and hyphens. Ignore all punctuation.
 				and convert all tokens to lowercase in order to ease classification."
 			-> Divide each token amount by total number of tokens to get discrete prob of each.
 			-> Sort tokens alphabetically (insertion sort).
@@ -28,9 +29,10 @@ Asst 2 Notes:
 				and a pointer to synchronization mechanism (aka mutex).
 		-> If a valid file is found
 			-> Create a new pthread with running file handler.
-			-> Pass an argument to that thread that holds the name of the file to be tokenized 						concatenated to the path so far, a ptr to shared data structure, and ptr
+			-> Pass an argument to that thread that holds the name of the file to be tokenized
+				concatenated to the path so far, a ptr to shared data structure, and ptr
 				to synchronization method.
-		-> Anything that is not a dir or REGULAR file it should ignore and pass over with 
+		-> Anything that is not a dir or REGULAR file it should ignore and pass over with
 			no warning/error
 		-> Join all threads
 
@@ -38,7 +40,8 @@ Asst 2 Notes:
 	-> If there is only one entry in the data structure should emit warning and stop.
 	-> Use Jensen-Shannon Distance between each of the distributions.
 	-> Compute the mean distribution of the two token distributions you are analyzing.
-		-> Construct a new mean token list by iterating through the two and computing the mean of the 			probabilities of any tokens that are the same and halving the probabilities of any
+		-> Construct a new mean token list by iterating through the two and computing the mean of the
+			probabilities of any tokens that are the same and halving the probabilities of any
 			 that are unique to one distribution.
 		-> MeanProb(tokenX) = (FirstDistributionProb(tokenX) + SecondDistributionProb(tokenX)) / 2;
 	-> Compute Kullbeck-Leibler Divergence of each distribution.
