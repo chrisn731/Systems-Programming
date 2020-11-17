@@ -1,0 +1,24 @@
+Main:
+	1. check to see if argc != 2
+	2. Make sure the give a valid directory !!
+		a. check errno's
+		b. make sure ends in '/'
+	3. Start Dirhandler
+	4. Check if:
+		a. head is null, print message exit.
+		b. only 1 entry, print message exit.
+
+	5. Computation.
+
+Dirhandler:
+
+
+Filehandler:
+
+
+
+
+
+
+Cleanup:
+	1. FREE ALL MEMORY FUCK MEMORY LEAKS
