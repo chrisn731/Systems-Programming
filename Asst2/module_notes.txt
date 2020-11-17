@@ -3,12 +3,13 @@ Main:
 	2. Make sure the give a valid directory !!
 		a. check errno's
 		b. make sure ends in '/'
-	3. Start Dirhandler
-	4. Check if:
+	3. Instantiate data structures.
+	4. Start Dirhandler
+	5. Check if:
 		a. head is null, print message exit.
 		b. only 1 entry, print message exit.
 
-	5. Computation.
+	6. Computation.
 
 Dirhandler:
 
