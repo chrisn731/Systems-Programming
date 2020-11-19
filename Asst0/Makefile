@@ -25,9 +25,6 @@ CFLAGS += -Wundef
 CFLAGS += -Wunreachable-code
 CFLAGS += -Wunused-but-set-parameter
 CFLAGS += -Wwrite-strings
-CFLAGS += -fsanitize=address
-CFLAGS += -fsanitize=leak
-CFLAGS += -fno-omit-frame-pointer
 
 all: tokenizer
 
