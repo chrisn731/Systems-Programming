@@ -150,6 +150,7 @@ void *start_filehandler(void *data)
 	parse_file(fd, new_file);
 	update_probabilities(new_file);
 
+	free(t_data);
 	close(fd);
 	return NULL;
 }

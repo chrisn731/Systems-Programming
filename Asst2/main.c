@@ -9,6 +9,9 @@
  * Note for Nelli:
  * 	Just needed a main to invoke and test my functions to
  * 	make sure everything is in the right place.
+ * 	Also, make sure that even if argv[1] does have an ending '/'
+ * 	that you malloc it to a new pointer just to make freeing memory easier
+ * 	at the end. ty
  */
 
 static void print_db(struct file_database *db)
@@ -37,6 +40,7 @@ int main(int argc, char **argv)
 	db = new_db();
 	t_data = new_thread_data(db, argv[1]);
 	start_dirhandler(t_data);
+	/* At this point, all newly spawned threads have finished. */
 	print_db(db);
 	free_database(db);
 	return 0;
