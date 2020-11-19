@@ -28,15 +28,15 @@ CFLAGS += -Wwrite-strings
 CFLAGS += -pthread # access to pthread lib
 CFLAGS += -D_DEFAULT_SOURCE # access to DT_DIR and DT_REG
 
-CSRC   := main.c filehandler.c \
-		dirhandler.c
+CSRC   := main.c filehandler.c dirhandler.c \
+	  data.c
 
 all: detector
 
 detector: $(CSRC)
 	$(CC) $(CFLAGS) -o $@ $^
 
-test: detector
+test: detector # DO NOT USE!
 	mv detector ../../../temp
 
 clean:
