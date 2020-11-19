@@ -11,8 +11,8 @@ struct file_word {
 };
 
 struct file_node {
-	struct file_word *word;
 	struct file_node *next;
+	struct file_word *word;
 	char *filepath;
 	unsigned int num_words;
 };
