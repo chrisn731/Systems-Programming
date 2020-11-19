@@ -35,10 +35,10 @@ static void create_word_entry(struct file_node *file, char *word)
 	if ((word_entry = search_for_fileword(file, word)) == NULL) {
 		word_entry = new_word(word);
 		insert_fileword(file, word_entry);
-		file->num_words++;
 	} else {
 		word_entry->count++;
 	}
+	file->num_words++;
 }
 
 /*
@@ -97,7 +97,6 @@ static int get_word(int fd, struct file_node *file)
 			*store++ = tolower(r_byte);
 		else if (isdigit(r_byte))
 			*store++ = r_byte;
-
 	} while (!isspace(r_byte));
 	*store = '\0';
 	create_word_entry(file, save);
@@ -129,6 +128,17 @@ static void parse_file(int fd, struct file_node *file)
 	}
 }
 
+static void update_probabilities(struct file_node *file)
+{
+	struct file_word *parser = file->word;
+	unsigned int total_num_words = file->num_words;
+
+	while (parser != NULL) {
+		parser->prob = (double) parser->count / total_num_words;
+		parser = parser->next;
+	}
+}
+
 void *start_filehandler(void *data)
 {
 	struct thread_data *t_data = data;
@@ -138,6 +148,7 @@ void *start_filehandler(void *data)
 	fd = open_file(t_data->filepath);
 	new_file = create_file_entry(t_data->db_ptr, t_data->filepath);
 	parse_file(fd, new_file);
+	update_probabilities(new_file);
 
 	close(fd);
 	return NULL;

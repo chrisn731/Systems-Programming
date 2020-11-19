@@ -18,10 +18,10 @@ static void print_db(struct file_database *db)
 	printf("DB:\n");
 
 	while (file_ptr != NULL) {
-		printf("\t%s:\n", file_ptr->filepath);
+		printf("\t%s (%d):\n", file_ptr->filepath, file_ptr->num_words);
 		word_ptr = file_ptr->word;
 		while (word_ptr != NULL) {
-			printf("\t\t%s\n", word_ptr->word);
+			printf("\t\t%s (%lf)\n", word_ptr->word, word_ptr->prob);
 			word_ptr = word_ptr->next;
 		}
 		file_ptr = file_ptr->next;

@@ -28,13 +28,13 @@ struct thread_data {
 };
 
 /* Still need to figure out the details of below. */
-struct file_word *new_word(char *);
-struct file_node *new_file(char *);
-struct file_database *new_db(void);
-struct thread_data *new_thread_data(struct file_database *, char *);
-void free_word(struct file_word *);
-void free_database(struct file_database *);
-struct file_word *search_for_fileword(const struct file_node *, const char *);
-void insert_fileword(struct file_node *file, struct file_word *);
+extern struct file_database *new_db(void);
+extern struct file_node *new_file(char *);
+extern struct file_word *new_word(char *);
+extern struct file_word *search_for_fileword(const struct file_node *, const char *);
+extern struct thread_data *new_thread_data(struct file_database *, char *);
+extern void free_word(struct file_word *);
+extern void free_database(struct file_database *);
+extern void insert_fileword(struct file_node *file, struct file_word *);
 
 #endif /* _DATA_H */
