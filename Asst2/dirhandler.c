@@ -180,5 +180,8 @@ void *start_dirhandler(void *dir_data)
 		free_pool(threads);
 	}
 	closedir(dirp);
+	/* We dont need to save the data that is passed to out directory threads */
+	free(t_data->filepath);
+	free(t_data);
 	return NULL;
 }

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "dirhandler.h"
 #include "data.h"
@@ -11,7 +12,7 @@
  * 	make sure everything is in the right place.
  * 	Also, make sure that even if argv[1] does have an ending '/'
  * 	that you malloc it to a new pointer just to make freeing memory easier
- * 	at the end. ty
+ * 	at the end.
  */
 
 static void print_db(struct file_database *db)
@@ -31,14 +32,28 @@ static void print_db(struct file_database *db)
 	}
 }
 
+static char *parent_dir_alloc(const char *fpath)
+{
+	char *parent_dir;
+	int fpath_length;
+
+	fpath_length = strlen(fpath);
+	parent_dir = malloc(sizeof(*parent_dir) * (fpath_length + 1));
+	strcpy(parent_dir, fpath);
+	parent_dir[fpath_length] = '\0';
+	return parent_dir;
+}
+
 int main(int argc, char **argv)
 {
 	struct thread_data *t_data;
 	struct file_database *db;
+	char *parent_dir;
 	UNUSED(argc);
 
 	db = new_db();
-	t_data = new_thread_data(db, argv[1]);
+	parent_dir = parent_dir_alloc(argv[1]);
+	t_data = new_thread_data(db, parent_dir);
 	start_dirhandler(t_data);
 	/* At this point, all newly spawned threads have finished. */
 	print_db(db);

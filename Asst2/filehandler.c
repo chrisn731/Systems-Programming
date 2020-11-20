@@ -28,6 +28,11 @@ static struct file_node *create_file_entry(struct file_database *db, char *pathn
 	return new_entry;
 }
 
+/*
+ * Takes in a pointer to a file node and a pointer to a word.
+ * Searches the file node's word list to see if the word already exsits.
+ * If so, increment word count and free word argument, else append to list.
+ */
 static void create_word_entry(struct file_node *file, char *word)
 {
 	struct file_word *word_entry;
@@ -36,7 +41,12 @@ static void create_word_entry(struct file_node *file, char *word)
 		word_entry = new_word(word);
 		insert_fileword(file, word_entry);
 	} else {
+		/*
+		 * Increment the count and free our newly malloc'd word if it
+		 * already exists within our list.
+		 */
 		word_entry->count++;
+		free(word);
 	}
 	file->num_words++;
 }

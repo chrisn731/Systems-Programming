@@ -36,7 +36,7 @@ all: detector
 detector: $(CSRC)
 	$(CC) $(CFLAGS) -o $@ $^
 
-test: detector # DO NOT USE!
+test: detector
 	mv detector ../../../temp
 
 clean:
