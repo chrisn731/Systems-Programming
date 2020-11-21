@@ -36,8 +36,13 @@ all: detector
 detector: $(CSRC)
 	$(CC) $(CFLAGS) -o $@ $^
 
-test: detector
-	mv detector ../../../temp
-
 clean:
 	rm -f detector
+
+# for debugging
+debugprog: $(CSRC)
+	$(CC) $(CFLAGS) -ggdb3 -o detector $^
+
+#Dont use this one !
+test: debugprog
+	mv detector ../../../temp/
