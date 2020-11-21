@@ -5,6 +5,10 @@
 
 #include "data.h"
 
+/*
+ * Purspose: Allocate space for a new word.
+ * Return Value: Pointer to file word type.
+ */
 struct file_word *new_word(char *word)
 {
 	struct file_word *new_word;
@@ -18,12 +22,20 @@ struct file_word *new_word(char *word)
 	return new_word;
 }
 
+/*
+ * Purpose: Free file word type from memory.
+ * Return Value: None.
+ */
 void free_word(struct file_word *word)
 {
 	free(word->word);
 	free(word);
 }
 
+/*
+ * Purpose: Allocate space for a new file entry.
+ * Return Value: Pointer to file type.
+ */
 struct file_node *new_file(char *pathname)
 {
 	struct file_node *new_file;
@@ -38,8 +50,10 @@ struct file_node *new_file(char *pathname)
 }
 
 /*
- * There should NEVER be a case where a thread should be freeing
- * an individual file. Only called ever by free_database().
+ * Purpose: Free a file from memory.
+ * Return Value: None.
+ * NOTE: There should NEVER be a case where a thread should be freeing
+ * an individual file. Too dangerous. Only called ever by free_database().
  */
 static void free_file(struct file_node *file)
 {
@@ -55,6 +69,15 @@ static void free_file(struct file_node *file)
 	free(file);
 }
 
+/*
+ * Purpose: Allocate space for a new file database, which includes a
+ * pointer to it's first file node, and a pthread mutex. This mutex
+ * is the one that all threads will use to lock to access the file
+ * node list.
+ * Return Value: Pointer to file database.
+ * NOTE: This function automatically init's the mutex. No need to try
+ * and mutate it afterwards.
+ */
 struct file_database *new_db(void)
 {
 	struct file_database *new_db;
@@ -67,8 +90,11 @@ struct file_database *new_db(void)
 }
 
 /*
- * WARNING: This will destory the ENITRE file database.
- * Freeing all data that it contains.
+ * Purpose: Free the file database from memory. This includes all it's
+ * stored files, and all their stored words.
+ * Return Value: None.
+ * NOTE: This is to only be used AFTER no more data is needed from the
+ * the database.
  */
 void free_database(struct file_database *db)
 {
@@ -83,6 +109,13 @@ void free_database(struct file_database *db)
 	free(db);
 }
 
+/*
+ * Purpose: Allocate space for a struct that we can pass to our threads
+ * so they have the necessary data to do their jobs. All they need is
+ * a pointer to the file database, and the filepath of the file they will
+ * act upon.
+ * Return Value: Pointer to Thread Data.
+ */
 struct thread_data *new_thread_data(struct file_database *db, char *fp)
 {
 	struct thread_data *new;
@@ -92,28 +125,4 @@ struct thread_data *new_thread_data(struct file_database *db, char *fp)
 	new->db_ptr = db;
 	new->filepath = fp;
 	return new;
-}
-
-void insert_fileword(struct file_node *file, struct file_word *new_word)
-{
-	struct file_word **parser = &file->word;
-
-	while (*parser != NULL)
-		parser = &(*parser)->next;
-
-	*parser = new_word;
-	new_word->next = NULL;
-}
-
-struct file_word *
-search_for_fileword(const struct file_node *file, const char *word)
-{
-	struct file_word *parser = file->word;
-
-	while (parser != NULL) {
-		if (!strcmp(parser->word, word))
-			return parser;
-		parser = parser->next;
-	}
-	return NULL;
 }
