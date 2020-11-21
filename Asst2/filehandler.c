@@ -7,11 +7,54 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <ctype.h>
+#include <string.h>
 
 #include "filehandler.h"
 #include "data.h"
 
+/*
+ * Purpose: Inserts a word into a file's word list. These words are always
+ * added to the end of the list.
+ * Return Value: None.
+ */
+static void insert_fileword(struct file_node *file, struct file_word *new_word)
+{
+	struct file_word **parser = &file->word;
+	char *word_to_insert = new_word->word;
+	int strcmp_ret;
 
+	while (*parser != NULL) {
+		strcmp_ret = strcmp((*parser)->word, word_to_insert);
+		if (strcmp_ret > 0)
+			break;
+		parser = &(*parser)->next;
+	}
+	new_word->next = *parser;
+	*parser = new_word;
+}
+
+/*
+ * Purpose: Search a file's word list for a perticular word.
+ * Return Value: If word is found, returns a pointer to it, otherwise NULL.
+ */
+static struct file_word *
+search_for_fileword(const struct file_node *file, const char *word)
+{
+	struct file_word *parser = file->word;
+
+	while (parser != NULL) {
+		if (!strcmp(parser->word, word))
+			return parser;
+		parser = parser->next;
+	}
+	return NULL;
+}
+/*
+ * Purpose: Creates an entry in the file database of a file. Given this
+ * function is mutating a shared data structure, it will lock a mutex
+ * and then execute it's main purpose.
+ * Return value: Pointer to new file node entry.
+ */
 static struct file_node *create_file_entry(struct file_database *db, char *pathname)
 {
 	struct file_node *new_entry, **parser = &db->first_node;
@@ -29,9 +72,10 @@ static struct file_node *create_file_entry(struct file_database *db, char *pathn
 }
 
 /*
- * Takes in a pointer to a file node and a pointer to a word.
- * Searches the file node's word list to see if the word already exsits.
- * If so, increment word count and free word argument, else append to list.
+ * Purpose: Searches the file node's word list to see if the word already exsits.
+ * If it does exist increment word count and free word argument,
+ * else append it to the list. Finally, increment the file's total word count.
+ * Return Value: None.
  */
 static void create_word_entry(struct file_node *file, char *word)
 {
@@ -52,8 +96,9 @@ static void create_word_entry(struct file_node *file, char *word)
 }
 
 /*
- * Safe way to read data. Keep attempting to read if our requested
- * value is not given to us from our first read.
+ * Purpose: Read data in from file descriptor and store it into a buffer.
+ * Repeat this action until the amount requested has been fulfilled.
+ * Return Value: Number of bytes read.
  */
 static int read_data(int fd, void *buf, size_t amt)
 {
@@ -61,14 +106,21 @@ static int read_data(int fd, void *buf, size_t amt)
 	char *byte = buf;
 	do {
 		n_read = read(fd, byte, amt);
-		if (n_read < 0)
+		if (n_read < 0) {
 			warnx("error during read.");
-		byte += n_read;
-		amt -= n_read;
+		} else {
+			byte += n_read;
+			amt -= n_read;
+		}
 	} while (amt > 0);
 	return save_amt;
 }
 
+/*
+ * Purpose: Handles opening files. Prints error message and exits
+ * calling thread if something were to go wrong.
+ * Return Value: Int of file descriptor.
+ */
 static int open_file(const char *filepath)
 {
 	int fd;
@@ -83,6 +135,11 @@ static int open_file(const char *filepath)
 	return fd;
 }
 
+/*
+ * Purpose: Retrieves a single word from a file. After word is retrieved hands
+ * off the found word to create_word_entry() to log it.
+ * Return value: Number of bytes read.
+ */
 static int get_word(int fd, struct file_node *file)
 {
 	int word_length = 0, alnum_count = 0;
@@ -98,7 +155,8 @@ static int get_word(int fd, struct file_node *file)
 	if (alnum_count == 0)
 		return word_length;
 
-	store = malloc(sizeof(*store) * alnum_count);
+	if (!(store = malloc(sizeof(*store) * (alnum_count + 1))))
+		errx(-1, "Out of memory.");
 	save = store;
 	lseek(fd, -word_length, SEEK_CUR);
 	do {
@@ -113,6 +171,10 @@ static int get_word(int fd, struct file_node *file)
 	return word_length;
 }
 
+/*
+ * Purpose: Finds the size of a file given by a file descriptor.
+ * Return value: Size of file.
+ */
 static int file_size(int fd)
 {
 	int size;
@@ -123,6 +185,11 @@ static int file_size(int fd)
 	return size;
 }
 
+/*
+ * Purpose: Parses an entire file for words. If a word is found the beginning
+ * of it is handed off to get_word to retrieve it.
+ * Return value: None.
+ */
 static void parse_file(int fd, struct file_node *file)
 {
 	int total_bytes, n_read;
@@ -138,6 +205,10 @@ static void parse_file(int fd, struct file_node *file)
 	}
 }
 
+/*
+ * Purpose: Parses through a file's words and updates their appearance frequencies.
+ * Return Value: None.
+ */
 static void update_probabilities(struct file_node *file)
 {
 	struct file_word *parser = file->word;
@@ -149,6 +220,10 @@ static void update_probabilities(struct file_node *file)
 	}
 }
 
+/*
+ * Kickoff function of handling a file.
+ * Return Value: NULL.
+ */
 void *start_filehandler(void *data)
 {
 	struct thread_data *t_data = data;
