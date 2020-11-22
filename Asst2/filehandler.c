@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
@@ -14,41 +13,33 @@
 
 /*
  * Purpose: Inserts a word into a file's word list. These words are always
- * added to the end of the list.
+ * inserted alphabetically. If the word already exists, increments the
+ * count of the word. Regardless if the word has a duplicate or not
+ * the file total word count is also incremented.
  * Return Value: None.
  */
-static void insert_fileword(struct file_node *file, struct file_word *new_word)
+static void insert_word_entry(struct file_node *file, char *word_to_insert)
 {
-	struct file_word **parser = &file->word;
-	char *word_to_insert = new_word->word;
+	struct file_word *new, **parser;
 	int strcmp_ret;
 
-	while (*parser != NULL) {
-		strcmp_ret = strcmp((*parser)->word, word_to_insert);
-		if (strcmp_ret > 0)
+	for (parser = &file->word; *parser != NULL; parser = &(*parser)->next) {
+		if ((strcmp_ret = strcmp((*parser)->word, word_to_insert)) == 0) {
+			/* Our word alredy exists in our list */
+			(*parser)->count++;
+			free(word_to_insert);
+			goto done;
+		} else if (strcmp_ret > 0) {
 			break;
-		parser = &(*parser)->next;
+		}
 	}
-	new_word->next = *parser;
-	*parser = new_word;
+	new = new_word(word_to_insert);
+	new->next = *parser;
+	*parser = new;
+done:
+	file->num_words++;
 }
 
-/*
- * Purpose: Search a file's word list for a perticular word.
- * Return Value: If word is found, returns a pointer to it, otherwise NULL.
- */
-static struct file_word *
-search_for_fileword(const struct file_node *file, const char *word)
-{
-	struct file_word *parser = file->word;
-
-	while (parser != NULL) {
-		if (!strcmp(parser->word, word))
-			return parser;
-		parser = parser->next;
-	}
-	return NULL;
-}
 /*
  * Purpose: Creates an entry in the file database of a file. Given this
  * function is mutating a shared data structure, it will lock a mutex
@@ -69,30 +60,6 @@ static struct file_node *create_file_entry(struct file_database *db, char *pathn
 	*parser = new_entry;
 	pthread_mutex_unlock(db_mut);
 	return new_entry;
-}
-
-/*
- * Purpose: Searches the file node's word list to see if the word already exsits.
- * If it does exist increment word count and free word argument,
- * else append it to the list. Finally, increment the file's total word count.
- * Return Value: None.
- */
-static void create_word_entry(struct file_node *file, char *word)
-{
-	struct file_word *word_entry;
-
-	if ((word_entry = search_for_fileword(file, word)) == NULL) {
-		word_entry = new_word(word);
-		insert_fileword(file, word_entry);
-	} else {
-		/*
-		 * Increment the count and free our newly malloc'd word if it
-		 * already exists within our list.
-		 */
-		word_entry->count++;
-		free(word);
-	}
-	file->num_words++;
 }
 
 /*
@@ -128,6 +95,8 @@ static int open_file(const char *filepath)
 	if ((fd = open(filepath, O_RDONLY)) < 0) {
 		if (errno == EACCES)
 			warnx("Cannot access: '%s'", filepath);
+		else if (errno == ENFILE)
+			warnx("Limit of open files has been reached.");
 		else
 			warnx("Error accessing: '%s'", filepath);
 		pthread_exit(NULL);
@@ -167,7 +136,7 @@ static int get_word(int fd, struct file_node *file)
 			*store++ = r_byte;
 	} while (!isspace(r_byte));
 	*store = '\0';
-	create_word_entry(file, save);
+	insert_word_entry(file, save);
 	return word_length;
 }
 
@@ -175,9 +144,9 @@ static int get_word(int fd, struct file_node *file)
  * Purpose: Finds the size of a file given by a file descriptor.
  * Return value: Size of file.
  */
-static int file_size(int fd)
+static long file_size(int fd)
 {
-	int size;
+	long size;
 
 	if ((size = lseek(fd, 0, SEEK_END)) < 0)
 		size = 0;
@@ -192,7 +161,8 @@ static int file_size(int fd)
  */
 static void parse_file(int fd, struct file_node *file)
 {
-	int total_bytes, n_read;
+	long total_bytes;
+	int n_read;
 	char r_byte;
 
 	/* Dont add empty files to the list. */
@@ -214,10 +184,8 @@ static void update_probabilities(struct file_node *file)
 	struct file_word *parser = file->word;
 	unsigned int total_num_words = file->num_words;
 
-	while (parser != NULL) {
+	for (parser = file->word; parser != NULL; parser = parser->next)
 		parser->prob = (double) parser->count / total_num_words;
-		parser = parser->next;
-	}
 }
 
 /*
