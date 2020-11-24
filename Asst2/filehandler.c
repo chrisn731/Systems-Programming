@@ -1,15 +1,15 @@
-#include <stdlib.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <errno.h>
-#include <err.h>
-#include <fcntl.h>
-#include <sys/types.h>
 #include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include "filehandler.h"
 #include "data.h"
+#include "filehandler.h"
 
 /*
  * Purpose: Inserts a word into a file's word list. These words are always
@@ -24,7 +24,7 @@ static void insert_word_entry(struct file_node *file, char *word_to_insert)
 	int strcmp_ret;
 
 	for (parser = &file->word; *parser != NULL; parser = &(*parser)->next) {
-		if ((strcmp_ret = strcmp((*parser)->word, word_to_insert)) == 0) {
+		if (!(strcmp_ret = strcmp((*parser)->word, word_to_insert))) {
 			/* Our word alredy exists in our list */
 			(*parser)->count++;
 			free(word_to_insert);
@@ -111,29 +111,27 @@ static int open_file(const char *filepath)
  */
 static int get_word(int fd, struct file_node *file)
 {
-	int word_length = 0, alnum_count = 0;
+	int word_length = 0, valid_letter_count = 0;
 	char *store, *save, r_byte;
 
 	lseek(fd, -1, SEEK_CUR);
 	do {
 		word_length += read_data(fd, &r_byte, sizeof(r_byte));
-		if (isalnum(r_byte))
-			alnum_count++;
+		if (isalpha(r_byte) || r_byte == '-')
+			valid_letter_count++;
 	} while (!isspace(r_byte));
 
-	if (alnum_count == 0)
+	if (valid_letter_count == 0)
 		return word_length;
 
-	if (!(store = malloc(sizeof(*store) * (alnum_count + 1))))
+	if (!(store = malloc(sizeof(*store) * (valid_letter_count + 1))))
 		errx(-1, "Out of memory.");
 	save = store;
 	lseek(fd, -word_length, SEEK_CUR);
 	do {
 		read_data(fd, &r_byte, sizeof(r_byte));
-		if (isalpha(r_byte))
+		if (isalpha(r_byte) || r_byte == '-')
 			*store++ = tolower(r_byte);
-		else if (isdigit(r_byte))
-			*store++ = r_byte;
 	} while (!isspace(r_byte));
 	*store = '\0';
 	insert_word_entry(file, save);
@@ -169,7 +167,7 @@ static void parse_file(int fd, struct file_node *file)
 	total_bytes = file_size(fd);
 	while (total_bytes > 0) {
 		n_read = read_data(fd, &r_byte, sizeof(r_byte));
-		if (isalnum(r_byte))
+		if (isalpha(r_byte) || r_byte == '-')
 			n_read = get_word(fd, file);
 		total_bytes -= n_read;
 	}
