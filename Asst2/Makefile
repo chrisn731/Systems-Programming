@@ -1,6 +1,5 @@
 CC 	:= gcc
 CFLAGS += -std=c99 -Wpedantic -pedantic-errors
-CFLAGS += -Werror
 CFLAGS += -Wall
 CFLAGS += -Wextra
 CFLAGS += -Waggregate-return
@@ -31,18 +30,15 @@ CFLAGS += -D_DEFAULT_SOURCE # access to DT_DIR and DT_REG
 CSRC   := main.c filehandler.c dirhandler.c \
 	  data.c
 
-all: detector
+EXE := detector
 
-detector: $(CSRC)
+all: $(EXE)
+
+$(EXE): $(CSRC)
 	$(CC) $(CFLAGS) -o $@ $^
+
+debug: $(CSRC)
+	$(CC) $(CFLAGS) -ggdb3 -o $@ $^
 
 clean:
 	rm -f detector
-
-# for debugging
-debugprog: $(CSRC)
-	$(CC) $(CFLAGS) -ggdb3 -o detector $^
-
-#Dont use this one !
-test: debugprog
-	mv detector ../../../temp/
