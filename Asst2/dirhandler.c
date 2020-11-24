@@ -1,16 +1,17 @@
-#include <stdlib.h>
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "filehandler.h"
-#include "dirhandler.h"
 #include "data.h"
+#include "dirhandler.h"
+#include "filehandler.h"
 
 #define PROGRAM_NAME "detector"
-#define IS_FILE 0
-#define IS_DIR  1
+
+#define FILE_TYPE 0
+#define DIR_TYPE  1
 
 /*
  * Purpose: Returns a pointer to a string that represents a file path.
@@ -26,13 +27,13 @@ static char *new_path(const char *ppath, const char *filename, int type)
 	char *new;
 
 	/* If it is a dir, we need one extra char for the '/' */
-	new_path_length = strlen(ppath) + strlen(filename) + ((type == IS_DIR) ? 2 : 1);
+	new_path_length = strlen(ppath) + strlen(filename) + (type == DIR_TYPE ? 2 : 1);
 	if (!(new = malloc(sizeof(*new) * new_path_length)))
 		errx(1, "Out of memory.");
 	strcpy(new, ppath);
 	strcat(new, filename);
 	/* Put the '/' at the end of our new string for directories */
-	if (type == IS_DIR)
+	if (type == DIR_TYPE)
 		new[new_path_length - 2] = '/';
 	new[new_path_length - 1] = '\0';
 	return new;
@@ -129,7 +130,7 @@ setup_dir_thread(pthread_t *thread, struct thread_data *t_data, const char *fnam
 	char *dirpath;
 	struct thread_data *new;
 
-	dirpath = new_path(t_data->filepath, fname, IS_DIR);
+	dirpath = new_path(t_data->filepath, fname, DIR_TYPE);
 	new = new_thread_data(t_data->db_ptr, dirpath);
 	pthread_create(thread, NULL, start_dirhandler, new);
 }
@@ -144,7 +145,7 @@ setup_file_thread(pthread_t *thread, struct thread_data *t_data, const char *fna
 	char *filepath;
 	struct thread_data *new;
 
-	filepath = new_path(t_data->filepath, fname, IS_FILE);
+	filepath = new_path(t_data->filepath, fname, FILE_TYPE);
 	new = new_thread_data(t_data->db_ptr, filepath);
 	pthread_create(thread, NULL, start_filehandler, new);
 }
