@@ -7,7 +7,6 @@ CFLAGS += -Wbad-function-cast
 CFLAGS += -Wcast-align
 CFLAGS += -Wcast-qual
 CFLAGS += -Wdeclaration-after-statement
-CFLAGS += -Wfloat-equal
 CFLAGS += -Wformat=2
 CFLAGS += -Wlogical-op
 CFLAGS += -Wmissing-declarations
@@ -35,10 +34,10 @@ EXE := detector
 all: $(EXE)
 
 $(EXE): $(CSRC)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ -lm
 
 debug: $(CSRC)
-	$(CC) $(CFLAGS) -ggdb3 -o $@ $^
+	$(CC) $(CFLAGS) -ggdb3 -o $@ $^ -lm
 
 clean:
 	rm -f detector
