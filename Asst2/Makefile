@@ -26,7 +26,7 @@ CFLAGS += -Wwrite-strings
 CFLAGS += -pthread # access to pthread lib
 CFLAGS += -D_DEFAULT_SOURCE # access to DT_DIR and DT_REG
 
-CSRC   := main.c filehandler.c dirhandler.c \
+CSRC   := Asst2.c filehandler.c dirhandler.c \
 	  data.c
 
 EXE := detector
@@ -35,9 +35,6 @@ all: $(EXE)
 
 $(EXE): $(CSRC)
 	$(CC) $(CFLAGS) -o $@ $^ -lm
-
-debug: $(CSRC)
-	$(CC) $(CFLAGS) -ggdb3 -o $@ $^ -lm
 
 clean:
 	rm -f detector

@@ -290,8 +290,12 @@ static void check_for_dir(const char *path)
 	if (!(dirp = opendir(path))) {
 		if (errno == EACCES)
 			errx(1, "Cannot access '%s'", path);
+		else if (errno == ENOTDIR)
+			errx(1, "'%s' is not a directory.", path);
+		else if (errno == ENOENT)
+			errx(1, "'%s' does not exist.", path);
 		else
-			errx(1, "Cannot find '%s'", path);
+			errx(1, "Error while accessing '%s'.", path);
 	}
 	closedir(dirp);
 }
