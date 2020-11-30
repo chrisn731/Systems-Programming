@@ -37,4 +37,4 @@ $(EXE): $(CSRC)
 	$(CC) $(CFLAGS) -o $@ $^ -lm
 
 clean:
-	rm -f detector
+	rm -f $(EXE)
