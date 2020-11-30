@@ -1,0 +1,49 @@
+TEST CASES:
+
+OVERVIEW:
+    * Our goal is to test the edge cases of our program, which deal with 5 main categories: large files,
+   	  empty files, same files, unique files, and nested directories. The first test case is the only one
+      designed to check runtime, while the rest are for computation checks.
+	  
+TEST 1: Large File
+    Description:
+      * Compares 7 files, one of which is 6MB large (found here: https://norvig.com/big.txt). This means that
+        6 pairs will contain big.txt, so our main computation alogirithm that compares 2 files (O(n^2)) will run
+        6 times with the large file.
+    Purpose:
+      * Tests the runtime of our calculations. We found the runtime to be about 7 minutes with big.txt included.
+
+TEST 2: Empty File
+    Description:
+      * Compares 3 files, 2 of which are empty. This serves as a two-in-one test, since we are testing how empty
+        files compare to each other and how a non-empty file compares to an empty one.
+    Purpose:
+      * Our design implementation of computing the KLD avoids a divide-by-zero error by setting the KLD to 0
+        by default. So if two files in a pair have an empty list, then their probabilities are 0, and the KLD
+        will result to 0 to avoid dividing by a mean of 0. 
+      * Empty files should have a JSD of 0, since they are exactly the same. An empty file and a non-empty file
+        should have .15 as the max, since it's (0 + log(2)) / 2. 
+      * The goal of this test is to make sure these 2 points above hold -- which they do.		
+
+TEST 3: Same File
+    Description:
+      * Compare 5 files that are the exact same. This should give 5C2 0's for the output. 
+    Purpose:
+      * Tests the minimum output, which is 0 according to the formula.
+      *	Ensures that the program correctly identifies when 2 files are the exact same.
+
+TEST 4: Unique File
+    Description:
+      * Compares 2 files that are completely different (no common words). This should output 1.
+    Purpose:
+      * Tests the maximum output, which from this test appears to be .301. This makes sense since the LSD is 
+		bounded by (log(2) + log(2)) / 2, which equals .301. 
+      *	Also ensures that the program correctly shows when 2 files having nothing in common.
+
+TEST 5: Multiple Directories
+    Description:
+      * Test 10 files, each in their own subdirectory from the previous file. This will give us 10 nested 
+        directories (each directory will contain 1 file and the next directory; last directory has no file). 
+    Purpose:
+      * Ensures that the code operates smoothly through multiple directories and doesn't have an issue when
+        reaching the final empty directory. 
