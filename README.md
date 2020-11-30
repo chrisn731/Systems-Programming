@@ -43,4 +43,18 @@ pointers, attempting to free NULL pointers, or attempting to free pointers not g
 Asst1 also includes `memgrind.c` that goes through multiple rigorous tests to ensure that mymalloc works through
 different types of workload stress.
 
-## Asst2 - TBD
+## Asst2 - File Analysis
+A file analyzer that uses threading and Jensen-Shannon Distance computation to calculate
+the similarities between two files. The file analyzer takes in a directory and will parse it of all
+files and directories. Any directory found will also be checked recursively. All files found within all
+found directories will be compared together. Therefore given n files, there will be (1/2)(n)(n-1) or
+(n CHOOSE 2) comparisons.<br/>
+Sample Output:
+```
+./detector testdirectory
+0.100000 "./testdirectory/test1.txt" and "./testdirectory/test2.txt"
+0.150515 "./testdirectory/test1.txt" and "./testdirectory/subdir/test3.txt"
+0.225234 "./testdirectory/test2.txt" and "./testdirectory/subdir/test3.txt"
+```
+
+## Asst3 - TBD
