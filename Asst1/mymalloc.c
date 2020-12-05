@@ -66,7 +66,7 @@ void *mymalloc(size_t size, const char *filename, int line_number)
 		 * Heap_byte + sizeof(*meta) ensures that we have room to store
 		 * our meta data.
 		 */
-	} while ((heap_byte + sizeof(*meta)) < heap_boundary);
+	} while (heap_byte < heap_boundary);
 
 	/* Heap byte now becomes the pointer to mutable memory we return to the user. */
 	heap_byte += sizeof(*meta);
@@ -138,7 +138,7 @@ static void coalesce_blocks(void)
 		first_meta = (struct header_data *) heap_byte;
 		heap_byte += first_meta->block_size + sizeof(*first_meta);
 		if (first_meta->free) {
-			while ((heap_byte + sizeof(*first_meta)) < heap_boundary) {
+			while (heap_byte < heap_boundary) {
 				next_meta = (struct header_data *) heap_byte;
 				if (!next_meta->free)
 					break;
