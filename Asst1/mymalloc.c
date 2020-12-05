@@ -21,7 +21,7 @@ static char myblock[HEAP_SIZE] = {0};
  * is not fatal to the running process.
  * Return Value: None.
  */
-static void warn(const char *warning, const char *fname, const int line_num)
+static void warn(const char *warning, const char *fname, int line_num)
 {
 	fprintf(stderr, "::[File: %s: Line %d] WARNING: %s\n", fname, line_num, warning);
 }
@@ -43,13 +43,13 @@ static void initialize_heap(void)
  * Purpose: Returns a pointer to a chunk of memory in our "heap".
  * Return Value: Pointer to the first byte of allocated memory.
  */
-void *mymalloc(size_t size, const char *filename, const int line_number)
+void *mymalloc(size_t size, const char *filename, int line_number)
 {
-	struct header_data *meta, *next_block;
+	struct header_data *meta;
 	char *heap_byte = myblock;
 	const char *const heap_boundary = myblock + HEAP_SIZE;
 
-	if (size == 0)
+	if (!size)
 		return NULL;
 
 	/* If the first 2 bytes of our heap are 0 bytes, then we haven't initialized */
@@ -59,22 +59,27 @@ void *mymalloc(size_t size, const char *filename, const int line_number)
 	/* Go through the heap to find an empty block that can fit the requested size. */
 	do {
 		meta = (struct header_data *) heap_byte;
-		if (meta->free && meta->block_size >= size)
+		if (meta->free && (meta->block_size >= size))
 			break;
 		heap_byte += sizeof(*meta) + meta->block_size;
-	} while (heap_byte < heap_boundary);
+		/*
+		 * Heap_byte + sizeof(*meta) ensures that we have room to store
+		 * our meta data.
+		 */
+	} while ((heap_byte + sizeof(*meta)) < heap_boundary);
 
+	/* Heap byte now becomes the pointer to mutable memory we return to the user. */
+	heap_byte += sizeof(*meta);
+
+	/* Ensure that the byte that we return to the user is not out of bounds */
 	if (heap_byte >= heap_boundary) {
 		WARN("Heap out of memory.");
 		return NULL;
 	}
 
-	/* Heap byte now becomes the pointer to mutable memory we return to the user. */
-	heap_byte += sizeof(*meta);
-
 	/* If our block is bigger than our requested size we need to split the block */
 	if (meta->block_size > size) {
-		next_block = (struct header_data *) (heap_byte + size);
+		struct header_data *next_block = (struct header_data *) (heap_byte + size);
 		next_block->free = 1;
 		next_block->block_size = meta->block_size - (size + sizeof(*next_block));
 	}
@@ -89,7 +94,7 @@ void *mymalloc(size_t size, const char *filename, const int line_number)
  */
 static int not_in_range(void *ptr)
 {
-	char *ptr_to_free = (char *) ptr;
+	char *ptr_to_free = ptr;
 	const char *const heap_boundary = myblock + HEAP_SIZE;
 
 	return (ptr_to_free < myblock) || (ptr_to_free >= heap_boundary);
@@ -114,7 +119,6 @@ static int non_mymalloc_ptr(void *ptr)
 		meta = (struct header_data *) heap_byte;
 		heap_byte += sizeof(*meta) + meta->block_size;
 	} while (heap_byte < heap_boundary);
-
 	return 1;
 }
 
@@ -134,15 +138,20 @@ static void coalesce_blocks(void)
 		first_meta = (struct header_data *) heap_byte;
 		heap_byte += first_meta->block_size + sizeof(*first_meta);
 		if (first_meta->free) {
-			next_meta = (struct header_data *) heap_byte;
-			while (next_meta->free && heap_byte < heap_boundary) {
+			while ((heap_byte + sizeof(*first_meta)) < heap_boundary) {
+				next_meta = (struct header_data *) heap_byte;
+				if (!next_meta->free)
+					break;
 				free_block_size = next_meta->block_size + sizeof(*next_meta);
 				first_meta->block_size += free_block_size;
 				heap_byte += free_block_size;
-				next_meta = (struct header_data *) heap_byte;
 			}
 		}
-	} while (heap_byte < heap_boundary);
+		/*
+		 * Heap byte + sizeof(first_meta) ensures that we are correctly
+		 * aligned on the possible start of a block.
+		 */
+	} while ((heap_byte + sizeof(*first_meta)) < heap_boundary);
 }
 
 /*
@@ -150,13 +159,12 @@ static void coalesce_blocks(void)
  * later.
  * Return Value: None.
  */
-void myfree(void *ptr, const char *filename, const int line_number)
+void myfree(void *ptr, const char *filename, int line_number)
 {
 	struct header_data *meta;
 	const char *err = NULL;
-	char *block_ptr = (char *) ptr;
 
-	/* Check main 3 error cases */
+	/* Check main 3 error cases: NULL, not in range, and non malloc'd */
 	if (!ptr)
 		err = "Attempting to free NULL pointer.";
 	else if (not_in_range(ptr))
@@ -168,8 +176,9 @@ void myfree(void *ptr, const char *filename, const int line_number)
 		return;
 	}
 
-	block_ptr -= sizeof(*meta);
-	meta = (struct header_data *) block_ptr;
+	/* Get the meta data of the valid block the user passed in */
+	meta = (struct header_data *) ((char *) ptr - sizeof(*meta));
+
 	/* check if the block has been freed already */
 	if (meta->free) {
 		WARN("Attempting to redudantly free pointer.");
