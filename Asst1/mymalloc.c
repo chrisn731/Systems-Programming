@@ -62,10 +62,6 @@ void *mymalloc(size_t size, const char *filename, int line_number)
 		if (meta->free && (meta->block_size >= size))
 			break;
 		heap_byte += sizeof(*meta) + meta->block_size;
-		/*
-		 * Heap_byte + sizeof(*meta) ensures that we have room to store
-		 * our meta data.
-		 */
 	} while (heap_byte < heap_boundary);
 
 	/* Heap byte now becomes the pointer to mutable memory we return to the user. */
@@ -77,8 +73,16 @@ void *mymalloc(size_t size, const char *filename, int line_number)
 		return NULL;
 	}
 
-	/* If our block is bigger than our requested size we need to split the block */
-	if (meta->block_size > size) {
+	/*
+	 * If our block is bigger than our requested size we need to split the block.
+	 * If we are splitting, make sure that we have enough bytes the end to
+	 * actually split. For example: Given a 4096 byte heap, if our meta
+	 * data is 2 bytes and our requested size is 4093, that means
+	 * we have 1 byte left to work with.
+	 * We cannot edit that last byte without going out of range.
+	 */
+	if (meta->block_size > size &&
+	((heap_byte + size + sizeof(*meta) / 2) < heap_boundary)) {
 		struct header_data *next_block = (struct header_data *) (heap_byte + size);
 		next_block->free = 1;
 		next_block->block_size = meta->block_size - (size + sizeof(*next_block));
@@ -138,7 +142,7 @@ static void coalesce_blocks(void)
 		first_meta = (struct header_data *) heap_byte;
 		heap_byte += first_meta->block_size + sizeof(*first_meta);
 		if (first_meta->free) {
-			while (heap_byte < heap_boundary) {
+			while ((heap_byte + sizeof(*first_meta) / 2) < heap_boundary) {
 				next_meta = (struct header_data *) heap_byte;
 				if (!next_meta->free)
 					break;
@@ -147,11 +151,7 @@ static void coalesce_blocks(void)
 				heap_byte += free_block_size;
 			}
 		}
-		/*
-		 * Heap byte + sizeof(first_meta) ensures that we are correctly
-		 * aligned on the possible start of a block.
-		 */
-	} while ((heap_byte + sizeof(*first_meta)) < heap_boundary);
+	} while ((heap_byte + sizeof(*first_meta) / 2) < heap_boundary);
 }
 
 /*
