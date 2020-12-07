@@ -82,7 +82,7 @@ void *mymalloc(size_t size, const char *filename, int line_number)
 	 * We cannot edit that last byte without going out of range.
 	 */
 	if (meta->block_size > size &&
-	((heap_byte + size + sizeof(*meta) / 2) < heap_boundary)) {
+	((heap_byte + size + sizeof(*meta)) <= heap_boundary)) {
 		struct header_data *next_block = (struct header_data *) (heap_byte + size);
 		next_block->free = 1;
 		next_block->block_size = meta->block_size - (size + sizeof(*next_block));
@@ -142,7 +142,7 @@ static void coalesce_blocks(void)
 		first_meta = (struct header_data *) heap_byte;
 		heap_byte += first_meta->block_size + sizeof(*first_meta);
 		if (first_meta->free) {
-			while ((heap_byte + sizeof(*first_meta) / 2) < heap_boundary) {
+			while ((heap_byte + sizeof(*first_meta)) <= heap_boundary) {
 				next_meta = (struct header_data *) heap_byte;
 				if (!next_meta->free)
 					break;
@@ -151,7 +151,7 @@ static void coalesce_blocks(void)
 				heap_byte += free_block_size;
 			}
 		}
-	} while ((heap_byte + sizeof(*first_meta) / 2) < heap_boundary);
+	} while ((heap_byte + sizeof(*first_meta)) <= heap_boundary);
 }
 
 /*
