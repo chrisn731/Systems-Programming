@@ -32,7 +32,7 @@
 #define CLNT_ERR  512
 #define CONN_ERR  1024
 
-#define SECTION_ERR (KNOCK_ERR | WHO_ERR | SETUP_ERR | SRESP_ERR | PUNCH_ERR | ADS_ERR)
+#define SECTION_ERRS (KNOCK_ERR | WHO_ERR | SETUP_ERR | SRESP_ERR | PUNCH_ERR | ADS_ERR)
 #define MSG_ERRS (CONT_ERR | LGTH_ERR | FRMT_ERR)
 
 struct joke {
@@ -42,16 +42,6 @@ struct joke {
 
 static int write_data(int, const void *, unsigned int);
 static int read_data(int, void *, unsigned int);
-
-static void die(const char *error, ...)
-{
-	va_list argp;
-	va_start(argp, error);
-	vfprintf(stderr, error, argp);
-	va_end(argp);
-	fputc('\n', stderr);
-	exit(1);
-}
 
 /*
  * Purpose: Make sure that the user is actually passing in
@@ -76,24 +66,27 @@ static int sanatize(const char *ptr)
  */
 static void handle_err(int cfd, int err_flags)
 {
-	char err_code[] = {'M', 0, 0, 0, 0};
-	char err_msg[sizeof(err_code) + 5] = {0};
+	char err_code[5] = {'M'};
+	const char *desc;
+	char msg_num;
 
 	/* check if the client sent us an error message */
 	if (err_flags & CLNT_ERR) {
-		sprintf(err_msg, "ERR|");
-		/* Read in the rest of the client's error message */
-		if (read_data(cfd, err_msg + 3, 5) < 0)
+		/* Read in the next 4 bytes for the error code */
+		if (read_data(cfd, err_code, 4) < 0)
 			return;
 
 	/* Check to see if we lost connection to the remote host. */
 	} else if (err_flags & CONN_ERR) {
-		printf("Connection to remote host lost.\n");
+		warnx("Connection to remote host lost.");
 		return;
 
 	/* Client sent us bad message. Handle it. */
 	} else {
-		switch (err_flags & SECTION_ERR) {
+		char err_msg[sizeof(err_code) + 5] = {0};
+
+		/* Start creating our err msg */
+		switch (err_flags & SECTION_ERRS) {
 		case KNOCK_ERR:
 			err_code[1] = '0';
 			break;
@@ -127,10 +120,28 @@ static void handle_err(int cfd, int err_flags)
 			err_code[3] = 'T';
 			break;
 		}
+		/* send the error to the client */
 		sprintf(err_msg, "ERR|%s|", err_code);
 		write_data(cfd, err_msg, sizeof(err_msg) - 1);
 	}
-	printf("::MSG ERR: %s\n", err_msg);
+
+	/*
+	 * Extract some info from the error code to make a useful
+	 * error description.
+	 */
+	msg_num = err_code[1];
+	switch (err_code[2]) {
+	case 'C':
+		desc = "content was not correct.";
+		break;
+	case 'L':
+		desc = "length value was incorrect.";
+		break;
+	case 'F':
+		desc = "format was broken.";
+		break;
+	}
+	warnx("[ERR] %s message %c %s", err_code, msg_num, desc);
 }
 
 /*
@@ -139,13 +150,14 @@ static void handle_err(int cfd, int err_flags)
  */
 static char *itoa(int x, int *length)
 {
-	int y = x;
+	int num_digits, y = x;
 	char *buf;
-	for (*length = 0; x > 0; ++*length)
+	for (num_digits = 0; x > 0; ++num_digits)
 		x /= 10;
-	buf = malloc(sizeof(*buf) * (*length + 1));
+	buf = malloc(sizeof(*buf) * (num_digits + 1));
 	if (!buf)
-		die("Out of memory.");
+		errx(-1, "Out of memory.");
+	*length = num_digits;
 	sprintf(buf, "%d", y);
 	return buf;
 }
@@ -167,11 +179,10 @@ static int read_data(int fd, void *buf, unsigned int amt)
 		do {
 			n_read = read(fd, ptr, 1);
 			if (n_read <= 0) {
-				printf("%d\n", errno);
 				if (n_read == 0 || errno == ECONNRESET) {
 					return -1;
 				} else {
-					die("Fatal Read Error");
+					errx(-1, "Fatal Read Error");
 				}
 			}
 			if (!iscntrl(*ptr)) {
@@ -201,9 +212,9 @@ static int write_data(int fd, const void *buf, unsigned int amt)
 			n_write = write(fd, ptr, left);
 			if (n_write < 0) {
 				if (errno == EBADF)
-					die("fd is not valid");
+					errx(-1, "fd is not valid");
 				else if (errno == EINTR)
-					die("Write interrupted by signal");
+					errx(-1, "Write interrupted by signal");
 				else
 					return -1;
 			}
@@ -243,13 +254,13 @@ static int read_payload_length(int fd, int *payload_length)
 	char buffer[128] = {0};
 	char *save, byte;
 
-	save = buffer;
-	do {
+	for (save = buffer; save < (buffer + sizeof(buffer) - 1); ++save) {
 		if (read_data(fd, &byte, 1) < 0)
 			return CONN_ERR;
-		if (isdigit(byte))
-			*save++ = byte;
-	} while (isdigit(byte));
+		if (!isdigit(byte))
+			break;
+		*save = byte;
+	}
 	*payload_length = atoi(buffer);
 	if (byte != '|')
 		return FRMT_ERR;
@@ -339,7 +350,8 @@ free_exit:
  */
 static int send_knock_knock(int cfd)
 {
-	char message[] = "REG|13|Knock, knock.|";
+	const char message[] = "REG|13|Knock, knock.|";
+	/* sizeof - 1 to disregard the '\0' char */
 	if (write_data(cfd, message, sizeof(message) - 1) < 0)
 		return CONN_ERR;
 	return 0;
@@ -354,11 +366,12 @@ static int send_knock_knock(int cfd)
 static int recv_whos_there(int cfd)
 {
 	int payload_length, err = 0;
-	char expected[] = "Who's there?";
+	const char expected[] = "Who's there?";
 	if ((err = read_header(cfd)))
 		return err;
 	if ((err = read_payload_length(cfd, &payload_length)))
 		return err;
+	/* sizeof - 1 because '\0' isnt part of the payload */
 	if (payload_length != (sizeof(expected) - 1))
 		return LGTH_ERR;
 	err = read_payload(cfd, payload_length, expected);
@@ -380,16 +393,17 @@ static int recv_setup_resp(int cfd, const char *setup)
 	if ((err = read_payload_length(cfd, &payload_length)))
 		return err;
 
-	full_msg_size = strlen(setup) + sizeof(", who?") - 2;
-	if (payload_length != full_msg_size)
+	/* -1 for the '\0' we dont want in our size */
+	full_msg_size = strlen(setup) + sizeof(" who?");
+	/* full_msg_size - 1 to account for '\0' not being part of payload */
+	if (payload_length != (full_msg_size - 1))
 		return LGTH_ERR;
 
-	full_msg = malloc(sizeof(*full_msg) * (full_msg_size + 1));
+	full_msg = malloc(sizeof(*full_msg) * full_msg_size);
 	if (!full_msg)
-		die("out of memory");
+		errx(-1, "out of memory");
 
-	memset(full_msg, 0, full_msg_size + 1);
-	/* -1 for so we dont check for our punctuation that we previously sent. */
+	/* -1 for so we dont to include our punctuation that we previously sent. */
 	sprintf(full_msg, "%.*s, who?", (int) strlen(setup) - 1, setup);
 	err = read_payload(cfd, payload_length, full_msg);
 	free(full_msg);
@@ -415,9 +429,8 @@ static int send_resp(int cfd, const char *setup)
 	 * Get our total length of our new msg:
 	 * len = payload_len + num_len + sizeof(REG|||)
 	 */
-	total_len = msg_len + num_len + 6;
-	msg = malloc(sizeof(*msg) * (total_len + 1));
-	memset(msg, 0, total_len + 1);
+	total_len = msg_len + num_len + sizeof("REG|||");
+	msg = malloc(sizeof(*msg) * total_len);
 	/* Create our msg */
 	sprintf(msg, "REG|%s|%s|", num, setup);
 
@@ -448,18 +461,18 @@ static int recv_ads(int cfd)
 /*
  * Purpose: Main function for the server handling connections.
  * The server goes through steps:
- * 	==== 	  Accept Connection 	 ====
- * 	==== Get joke if jokes.txt exist ====
+ * 	====== 	  Accept Connection 	======
+ * 	====== Get joke from joke array ======
  * 	Server 				Client
  * 	====== 				======
  * 	> Knock, knock.
  * 				Who's there? <
  * 	> (Setup Line)
- * 				(Setup), who? <
+ * 			       (Setup), who? <
  * 	> (Punchline)
- * 				(Disgust msg) <
+ * 			       (Disgust msg) <
  * 	> <Closes conn>
- * 	==== 	End of msg transaction   ====
+ * 	====  End of message transaction  ====
  *
  * If an error is found at any point during this transaction, the server
  * reports the error to the console, and closes the connection with the
@@ -468,33 +481,35 @@ static int recv_ads(int cfd)
  * Return Value: This function never returns. Server will forever run
  * unless a fatal error occurs.
  */
-static void handle_connection(int sfd, const struct joke *joke_arr, int arr_len)
+static void handle_connection(int sfd, struct joke *joke_arr, int arr_len)
 {
 	struct joke *stdjoke;
 	int client_fd, err;
 	char bruh1[] = "Yo Pierre you wanna come out here?";
 	char bruh2[] = "EEEEEHHHHH.";
 
-	stdjoke = malloc(sizeof(*stdjoke));
-	stdjoke->setup = bruh1;
-	stdjoke->punch = bruh2;
+	if (!joke_arr) {
+		stdjoke = malloc(sizeof(*stdjoke));
+		stdjoke->setup = bruh1;
+		stdjoke->punch = bruh2;
+	}
+
 	srand(time(NULL));
 	for (;;) {
 		client_fd = accept(sfd, NULL, NULL);
-
 		if (client_fd < 0) {
 			if (errno == ECONNABORTED) {
-				fprintf(stderr, "Queued connection aborted.\n");
+				warnx("Queued connection aborted.");
 				continue;
 			} else {
-				die("Fatal accept error");
+				errx(-1, "Fatal accept error");
 			}
 		}
+
 		if (joke_arr) {
 			int rand_num = rand();
 			rand_num %= arr_len;
-			stdjoke->setup = joke_arr[rand_num].setup;
-			stdjoke->punch = joke_arr[rand_num].punch;
+			stdjoke = &joke_arr[rand_num];
 		}
 		err = 0;
 		printf("Accepted Client.\n");
@@ -555,7 +570,7 @@ static void open_server_sock(const char *port, int *sfd)
 	hints.ai_flags = AI_PASSIVE;
 
 	if (getaddrinfo(NULL, port, &hints, &addr_list))
-			die("getaddrinfo: %s", port);
+		errx(1, "Getaddrinfo error for port %s", port);
 
 	for (addr = addr_list; addr != NULL; addr = addr->ai_next) {
 		*sfd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
@@ -568,7 +583,7 @@ static void open_server_sock(const char *port, int *sfd)
 		close(*sfd);
 	}
 	if (!addr)
-		die("Couldn't bind (my man)");
+		errx(1, "Couldn't bind on %s", port);
 	freeaddrinfo(addr_list);
 }
 
@@ -600,10 +615,9 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 		return -1;
 	jokes >>= 1;
 
-	printf("Jokes: %d\n", jokes);
 	*joke_arr = malloc(sizeof(**joke_arr) * jokes);
 	if (!*joke_arr)
-		die("Out of memory");
+		errx(-1, "Out of memory");
 	*arr_len = jokes;
 
 	rewind(fp);
@@ -611,19 +625,21 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 		struct joke *joke = &(*joke_arr)[jokes];
 		int length;
 
+		/* get the setup line */
 		memset(buffer, 0, sizeof(buffer));
 		fgets(buffer, 1024, fp);
+		buffer[sizeof(buffer) - 1] = '\0';
 		length = strlen(buffer);
 		joke->setup = malloc(sizeof(char) * length);
-		buffer[sizeof(buffer) - 1] = '\0';
 		strncpy(joke->setup, buffer, length);
 		joke->setup[length - 1] = '\0';
 
+		/* get the punch line */
 		memset(buffer, 0, sizeof(buffer));
 		fgets(buffer, 1024, fp);
+		buffer[sizeof(buffer) - 1] = '\0';
 		length = strlen(buffer);
 		joke->punch = malloc(sizeof(char) * length);
-		buffer[sizeof(buffer) - 1] = '\0';
 		strncpy(joke->punch, buffer, length);
 		joke->punch[length - 1] = '\0';
 	}
@@ -637,15 +653,14 @@ int main(int argc, char **argv)
 	int server_fd, jarray_len, port;
 
 	if (argc != 2)
-		die("Usage: %s <port number>", argv[0]);
+		errx(1, "Usage: %s <port number>", argv[0]);
 	if (sanatize(argv[1]))
-		die("Why you entering characters my man?");
+		errx(1, "Why you entering characters my man");
 	port = atoi(argv[1]);
 	if (port < 5000 || port > 65536)
-		die("Port number must be between 5000-65536.");
+		errx(1, "Port number must be between 5000 - 65536");
 	if (get_jokes(&jokes, &jarray_len))
-		fprintf(stderr, "Jokes.txt not found or format corrupted, "
-				"using 1 joke.\n");
+		warnx("Jokes not found or format corrupted, using 1 joke.");
 
 	open_server_sock(argv[1], &server_fd);
 	handle_connection(server_fd, jokes, jarray_len);
