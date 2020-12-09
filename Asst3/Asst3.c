@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <netdb.h>
@@ -17,19 +18,19 @@
 #define BACKLOG 0
 
 /* Section error codes */
-#define KNOCK_ERR 0
-#define WHO_ERR   1
-#define SETUP_ERR 2
-#define SRESP_ERR 4
-#define PUNCH_ERR 8
-#define ADS_ERR   16
+#define KNOCK_ERR 1
+#define WHO_ERR   2
+#define SETUP_ERR 4
+#define SRESP_ERR 8
+#define PUNCH_ERR 16
+#define ADS_ERR   32
 
 /* Message Error codes */
-#define CONT_ERR  32
-#define LGTH_ERR  64
-#define FRMT_ERR  128
-#define CLNT_ERR  256
-#define CONN_ERR  512
+#define CONT_ERR  64
+#define LGTH_ERR  128
+#define FRMT_ERR  256
+#define CLNT_ERR  512
+#define CONN_ERR  1024
 
 #define SECTION_ERR (KNOCK_ERR | WHO_ERR | SETUP_ERR | SRESP_ERR | PUNCH_ERR | ADS_ERR)
 #define MSG_ERRS (CONT_ERR | LGTH_ERR | FRMT_ERR)
@@ -52,6 +53,11 @@ static void die(const char *error, ...)
 	exit(1);
 }
 
+/*
+ * Purpose: Make sure that the user is actually passing in
+ * a valid port. AKA not something like 803e32.
+ * Return Value: 0 on success, non zero on failure.
+ */
 static int sanatize(const char *ptr)
 {
 	for (; *ptr != '\0'; ++ptr) {
@@ -61,6 +67,13 @@ static int sanatize(const char *ptr)
 	return 0;
 }
 
+/*
+ * Purpose: Handle errors. If a client has sent us an error code,
+ * print it out and return. If the client sent us a bad message,
+ * create an error message, send it to the client, and print it
+ * out to the terminal.
+ * Return Value: None.
+ */
 static void handle_err(int cfd, int err_flags)
 {
 	char err_code[] = {'M', 0, 0, 0, 0};
@@ -120,6 +133,10 @@ static void handle_err(int cfd, int err_flags)
 	printf("::MSG ERR: %s\n", err_msg);
 }
 
+/*
+ * Purpose: Convert a number to a string. (i.e. 23 => "23\0")
+ * Return Value: Pointer to number string.
+ */
 static char *itoa(int x, int *length)
 {
 	int y = x;
@@ -133,6 +150,14 @@ static char *itoa(int x, int *length)
 	return buf;
 }
 
+/*
+ * Purpose: Safety wrapper for read function.
+ * fd: File descriptor to read from.
+ * buf: Buffer to write the data to.
+ * amt: How much data to read. Function does not return until
+ * 	this value is met OR an error has occured.
+ * Return Value: amt or a value < 0 representing an error.
+ */
 static int read_data(int fd, void *buf, unsigned int amt)
 {
 	if (amt) {
@@ -140,21 +165,32 @@ static int read_data(int fd, void *buf, unsigned int amt)
 		int n_read;
 		char *ptr = buf;
 		do {
-			n_read = read(fd, ptr, left);
+			n_read = read(fd, ptr, 1);
 			if (n_read <= 0) {
-				if (n_read == 0) {
+				printf("%d\n", errno);
+				if (n_read == 0 || errno == ECONNRESET) {
 					return -1;
 				} else {
-					die("read error");
+					die("Fatal Read Error");
 				}
 			}
-			ptr += n_read;
-			left -= n_read;
+			if (!iscntrl(*ptr)) {
+				ptr += n_read;
+				left -= n_read;
+			}
 		} while (left > 0);
 	}
 	return amt;
 }
 
+/*
+ * Purpose: Saftey wrapper for write function.
+ * fd: File descriptor to write to.
+ * buf: Buffer is the data used to be written to the file descriptor.
+ * amt: How much data to be written. Function does not return until this
+ * 	value is met OR an error has occured.
+ * Return Value: amt or a value < 0 representing an error.
+ */
 static int write_data(int fd, const void *buf, unsigned int amt)
 {
 	if (amt) {
@@ -178,6 +214,11 @@ static int write_data(int fd, const void *buf, unsigned int amt)
 	return amt;
 }
 
+/*
+ * Purpose: Parse the header and make sure it is correct.
+ * Return Value: 0 if received correctely formatted header,
+ * nonzero otherwise.
+ */
 static int read_header(int fd)
 {
 	char correct_header[] = "REG|";
@@ -192,6 +233,11 @@ static int read_header(int fd)
 	return 0;
 }
 
+/*
+ * Purpose: Read in the length of the payload. Make sure that
+ * this is also correctly formatted.
+ * Return Value: 0 for success, non zero otherwise.
+ */
 static int read_payload_length(int fd, int *payload_length)
 {
 	char buffer[128] = {0};
@@ -210,12 +256,25 @@ static int read_payload_length(int fd, int *payload_length)
 	return 0;
 }
 
+/*
+ * Purpose: Checks for end of sentence punctuation.
+ * Return Value: Non zero for success, 0 otherwise.
+ */
 static int is_punct(char c)
 {
 	return c == '?' || c == '!' || c == '.';
 }
 
-static int read_payload(int fd, int payload_length, char *content)
+/*
+ * Purpose: Reads in the payload from client.
+ * Reads in until: end of sentence punctuation is met or a '|'.
+ * Checks for erros such as too many or to little bytes.
+ * If we are checking to see if they sent the correct message compare
+ * the payload against content.
+ * Else, make sure that it is all correctly formatted.
+ * Return Value: 0 for success, nonzero otherwise.
+ */
+static int read_payload(int fd, int payload_length, const char *content)
 {
 	int n_read, err = 0, bytes_read = 0;
 	char byte, *buffer, *save;
@@ -274,6 +333,10 @@ free_exit:
 	return err;
 }
 
+/*
+ * Purpose: Send "Knock, knock." to the client in correct format.
+ * Return Value: 0 for success, nonzero otherwise.
+ */
 static int send_knock_knock(int cfd)
 {
 	char message[] = "REG|13|Knock, knock.|";
@@ -282,6 +345,12 @@ static int send_knock_knock(int cfd)
 	return 0;
 }
 
+/*
+ * Purpose: Read in expected "Who's there?" message from client.
+ * If client does not send us this or a poorly formatted message,
+ * report an error.
+ * Return Value: 0 for success, nonzero otherwise.
+ */
 static int recv_whos_there(int cfd)
 {
 	int payload_length, err = 0;
@@ -296,10 +365,14 @@ static int recv_whos_there(int cfd)
 	return err;
 }
 
-static int recv_setup_resp(int cfd, char *setup)
+/*
+ * Purpose: Read in the client's response to our sent setup message.
+ * If it is differnt in any way from what we expected, report the error.
+ * Return Value: 0 for success, nonzero otherwise.
+ */
+static int recv_setup_resp(int cfd, const char *setup)
 {
 	int payload_length, full_msg_size, err = 0;
-	char ending[] = ", who?";
 	char *full_msg;
 
 	if ((err = read_header(cfd)))
@@ -307,15 +380,15 @@ static int recv_setup_resp(int cfd, char *setup)
 	if ((err = read_payload_length(cfd, &payload_length)))
 		return err;
 
-	full_msg_size = strlen(setup) + sizeof(ending) - 1;
-	if (payload_length != (full_msg_size - 1))
+	full_msg_size = strlen(setup) + sizeof(", who?") - 2;
+	if (payload_length != full_msg_size)
 		return LGTH_ERR;
 
-	full_msg = malloc(sizeof(*full_msg) * full_msg_size);
+	full_msg = malloc(sizeof(*full_msg) * (full_msg_size + 1));
 	if (!full_msg)
 		die("out of memory");
 
-	memset(full_msg, 0, full_msg_size);
+	memset(full_msg, 0, full_msg_size + 1);
 	/* -1 for so we dont check for our punctuation that we previously sent. */
 	sprintf(full_msg, "%.*s, who?", (int) strlen(setup) - 1, setup);
 	err = read_payload(cfd, payload_length, full_msg);
@@ -323,11 +396,13 @@ static int recv_setup_resp(int cfd, char *setup)
 	return err;
 }
 
-
-static int send_resp(int cfd, char *setup)
+/*
+ * Purpose: Send a message to the client in the correct format.
+ * Return Value: 0 for success, nonzero otherwise.
+ */
+static int send_resp(int cfd, const char *setup)
 {
 	int num_len, msg_len, total_len, err = 0;
-	char start[] = "REG|";
 	char *num, *msg;
 
 	/* Store the length of our message + 1 for punctuation */
@@ -353,6 +428,11 @@ static int send_resp(int cfd, char *setup)
 	return err;
 }
 
+/*
+ * Purpose: Read in message of annoyance/disgust/surprise.
+ * Check for incorrectly formatted message.
+ * Return Value: 0 for success, nonzero otherwise.
+ */
 static int recv_ads(int cfd)
 {
 	int payload_length, err = 0;
@@ -365,7 +445,30 @@ static int recv_ads(int cfd)
 	return err;
 }
 
-static void handle_connection(int sfd, struct joke *joke_arr, int arr_len)
+/*
+ * Purpose: Main function for the server handling connections.
+ * The server goes through steps:
+ * 	==== 	  Accept Connection 	 ====
+ * 	==== Get joke if jokes.txt exist ====
+ * 	Server 				Client
+ * 	====== 				======
+ * 	> Knock, knock.
+ * 				Who's there? <
+ * 	> (Setup Line)
+ * 				(Setup), who? <
+ * 	> (Punchline)
+ * 				(Disgust msg) <
+ * 	> <Closes conn>
+ * 	==== 	End of msg transaction   ====
+ *
+ * If an error is found at any point during this transaction, the server
+ * reports the error to the console, and closes the connection with the
+ * remote client.
+ *
+ * Return Value: This function never returns. Server will forever run
+ * unless a fatal error occurs.
+ */
+static void handle_connection(int sfd, const struct joke *joke_arr, int arr_len)
 {
 	struct joke *stdjoke;
 	int client_fd, err;
@@ -430,11 +533,19 @@ err_and_close:
 			handle_err(client_fd, err);
 		close(client_fd);
 		printf("Client exited with error code: %d\n", err);
+		puts("---------------------------------------------------");
 	}
 
 }
 
-static void open_server_sock(char *port, int *sfd)
+/*
+ * Purpose: Given a port, sets up a sets up a socket for listening on
+ * that port. If binding on that port is not possible, reports an error
+ * and exits the program. If binding succeeds, stores the socket file descriptor
+ * into sfd.
+ * Return Value: None.
+ */
+static void open_server_sock(const char *port, int *sfd)
 {
 	struct addrinfo hints, *addr_list, *addr;
 
@@ -461,6 +572,20 @@ static void open_server_sock(char *port, int *sfd)
 	freeaddrinfo(addr_list);
 }
 
+/*
+ * Purpose: Get jokes from jokes.txt file.
+ * Jokes.txt should be formatted like:
+ * 		==== Setup Line =====
+ * 		==== Punch line =====
+ * 		==== Setup Line =====
+ * 			...
+ * If the file is not found OR not formatted correctly,
+ * returns an error and falls back on a single joke.
+ * If the file is usable, creates an array of jokes for
+ * the server to randomly select from and send to the client.
+ *
+ * Return Value: 0 for success, nonzero otherwise.
+ */
 static int get_jokes(struct joke **joke_arr, int *arr_len)
 {
 	FILE *fp;
@@ -469,11 +594,13 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 
 	if (!(fp = fopen("jokes.txt", "r")))
 		return -1;
-	for (jokes = 0; fgets(buffer, 1024, fp); ++jokes);
+	for (jokes = 0; fgets(buffer, 1024, fp); ++jokes)
+		;
 	if ((jokes % 2) != 0)
 		return -1;
-	jokes /= 2;
+	jokes >>= 1;
 
+	printf("Jokes: %d\n", jokes);
 	*joke_arr = malloc(sizeof(**joke_arr) * jokes);
 	if (!*joke_arr)
 		die("Out of memory");
@@ -506,21 +633,24 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 
 int main(int argc, char **argv)
 {
-	struct joke *jokes;
-	int server_fd, jarray_len;
+	struct joke *jokes = NULL;
+	int server_fd, jarray_len, port;
 
 	if (argc != 2)
-		die("Enter a port number my man");
+		die("Usage: %s <port number>", argv[0]);
 	if (sanatize(argv[1]))
 		die("Why you entering characters my man?");
-	if (atoi(argv[1]) <= 0)
-		die("Port number must be > 0");
+	port = atoi(argv[1]);
+	if (port < 5000 || port > 65536)
+		die("Port number must be between 5000-65536.");
 	if (get_jokes(&jokes, &jarray_len))
-		fprintf(stderr, "Jokes.txt not found, using 1 joke.\n");
+		fprintf(stderr, "Jokes.txt not found or format corrupted, "
+				"using 1 joke.\n");
 
 	open_server_sock(argv[1], &server_fd);
 	handle_connection(server_fd, jokes, jarray_len);
 
+	/* Should never be reached. */
 	close(server_fd);
 	return 0;
 }
