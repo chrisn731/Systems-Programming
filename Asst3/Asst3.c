@@ -479,14 +479,15 @@ static void handle_connection(int sfd, struct joke *joke_arr, int arr_len)
 {
 	struct joke *stdjoke;
 	int client_fd, err;
-	char bruh1[] = "Yo Pierre you wanna come out here?";
-	char bruh2[] = "EEEEEHHHHH.";
+	/* Only used if jokes.txt is missing */
+	char std_setup[] = "Who.";
+	char std_punch[] = "I didn't know you were an owl!";
 
 	if (!joke_arr) {
 		if (!(stdjoke = malloc(sizeof(*stdjoke))))
 			errx(-1, "Out of memory.");
-		stdjoke->setup = bruh1;
-		stdjoke->punch = bruh2;
+		stdjoke->setup = std_setup;
+		stdjoke->punch = std_punch;
 	}
 
 	srand(time(NULL));
