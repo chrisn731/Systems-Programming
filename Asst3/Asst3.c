@@ -15,7 +15,7 @@
 #define itoc(c) ((c) + 48)
 
 /* Server Backlog size */
-#define BACKLOG 0
+#define BACKLOG 2
 
 /* Section error codes */
 #define KNOCK_ERR 1
@@ -179,11 +179,10 @@ static int read_data(int fd, void *buf, unsigned int amt)
 		do {
 			n_read = read(fd, ptr, 1);
 			if (n_read <= 0) {
-				if (n_read == 0 || errno == ECONNRESET) {
+				if (n_read == 0 || errno == ECONNRESET)
 					return -1;
-				} else {
+				else
 					errx(-1, "Fatal Read Error");
-				}
 			}
 			if (!iscntrl(*ptr)) {
 				ptr += n_read;
@@ -339,6 +338,7 @@ static int read_payload(int fd, int payload_length, const char *content)
 		if (!is_punct(buffer[strlen(buffer) - 1]))
 			err = CONT_ERR;
 	}
+	printf("\t%s <\n", buffer);
 free_exit:
 	free(buffer);
 	return err;
@@ -354,6 +354,7 @@ static int send_knock_knock(int cfd)
 	/* sizeof - 1 to disregard the '\0' char */
 	if (write_data(cfd, message, sizeof(message) - 1) < 0)
 		return CONN_ERR;
+	puts("> Knock, knock.");
 	return 0;
 }
 
@@ -436,6 +437,7 @@ static int send_resp(int cfd, const char *setup)
 
 	if (write_data(cfd, msg, strlen(msg)) < 0)
 		err = CONN_ERR;
+	printf("> %s\n", setup);
 	free(msg);
 	free(num);
 	return err;
@@ -512,7 +514,6 @@ static void handle_connection(int sfd, struct joke *joke_arr, int arr_len)
 			stdjoke = &joke_arr[rand_num];
 		}
 		err = 0;
-		printf("Accepted Client.\n");
 
 		/* > Knock, knock. */
 		if ((err = send_knock_knock(client_fd)))
@@ -547,7 +548,6 @@ err_and_close:
 		if (err)
 			handle_err(client_fd, err);
 		close(client_fd);
-		printf("Client exited with error code: %d\n", err);
 		puts("---------------------------------------------------");
 	}
 
@@ -611,8 +611,10 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 		return -1;
 	for (jokes = 0; fgets(buffer, 1024, fp); ++jokes)
 		;
-	if ((jokes % 2) != 0)
+	if ((jokes % 2) != 0) {
+		fclose(fp);
 		return -1;
+	}
 	jokes >>= 1;
 
 	*joke_arr = malloc(sizeof(**joke_arr) * jokes);
@@ -650,7 +652,7 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 int main(int argc, char **argv)
 {
 	struct joke *jokes = NULL;
-	int server_fd, jarray_len, port;
+	int server_fd, port, jarray_len = 0;
 
 	if (argc != 2)
 		errx(1, "Usage: %s <port number>", argv[0]);
@@ -660,7 +662,7 @@ int main(int argc, char **argv)
 	if (port < 5000 || port > 65536)
 		errx(1, "Port number must be between 5000 - 65536");
 	if (get_jokes(&jokes, &jarray_len))
-		warnx("Jokes not found or format corrupted, using 1 joke.");
+		warnx("jokes.txt not found or format corrupted, using 1 joke.");
 
 	open_server_sock(argv[1], &server_fd);
 	handle_connection(server_fd, jokes, jarray_len);
