@@ -1,0 +1,64 @@
+TEST CASES:
+
+OVERVIEW:
+    * Our goal is to test the edge cases of our program, which deal with 5 main categories: disconnecting,
+      fractured/delayed input, shorter than expected message, longer than expected message, and overflow.
+    * Also added an additional test case dealing with the client sending an error code.
+	  
+TEST 1: Client Disconnection
+    Description:
+      * This test involves the client disconnecting before sending an expected input. We expect that the
+        the server should simply close the connection to the client so it can accept the next one in queue. 
+    Purpose:
+      * Tests that the server doesn't crash or loop infinitely when a client unexpectedly disconnects. Our
+        read and write functions should handle this case by checking if the client disconnects during byte
+        transfer.	
+
+TEST 2: Fractured/Delayed Input
+    Description:
+      * Enter in the input byte by byte, with each character entered on a newline. Also added a few second
+        delay between each input.
+    Purpose:
+      * The read function should wait until it receives a complete message or the client disconnects.
+        Entering the message byte by byte ensures that the program is properly waiting for the third
+        '|' character, which signals the end of the message. In the case of this project, the program
+        will wait infinite time until the last bar symbol is found (unless an error triggers termination).
+		
+TEST 3: Shorter Than Expected Message
+    Description:
+      * Send a message to the server that has a shorter length than what's entered in the length field.
+           EX: REG|10|Hi.| (Should have a length value of 3)
+    Purpose:
+      * Ensures that the program gives a length error if the message is shorter than what was provided
+        in the length field. Upon giving this error, the client should disconnect and the server
+        connects to the next client in the queue. 
+
+TEST 4: Longer Than Expected Message
+    Description:
+      * Send a message to the server that has a longer length than what's entered in the length field.
+           EX: REG|3|Hello.| (Should have a length value of 6)
+    Purpose:
+      * Ensures that the program gives a length error if the message is longer than what was provided
+        in the length field. The server should try to read in as many bytes as seen in the length field;
+        if that byte count is reached and a final bar character hasn't been received yet, there should
+        be a length error, and the client is disconnected.
+
+TEST 5: Message Overflow
+    Description:
+      * Send in a complete message to the server, with the beginning contents of the next message after the
+        final bar.
+           EX: REG|3|Hi.|REG|
+    Purpose:
+      * This format should be allowed as long as the next message from the client does not include REG|,
+        i.e., the next client message starts with the length field. The server should be able to recognize
+        that it has read in the start of the next message, as it will first process the initial complete
+        message at the 3rd bar character and output a message. Following this, it will then process REG|
+        as the start of the next message, as those bytes were left in the read buffer.
+
+TEST 6: Error Code Sent by Client
+    Description:
+      * The client sends an error message, such as ERR|M0LN|.
+    Purpose:
+      * This test will make sure that the server will interpret the message as an error and output the exact
+        type of error included in the error code. Once received, the client connection will be closed,
+        and the server can connect to the next client.
