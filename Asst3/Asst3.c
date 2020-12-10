@@ -389,17 +389,15 @@ static int recv_setup_resp(int cfd, const char *setup)
 	if ((err = read_payload_length(cfd, &payload_length)))
 		return err;
 
-	/* -1 for the '\0' we dont want in our size */
 	full_msg_size = strlen(setup) + sizeof(" who?");
 	/* full_msg_size - 1 to account for '\0' not being part of payload */
 	if (payload_length != (full_msg_size - 1))
 		return LGTH_ERR;
 
-	full_msg = malloc(sizeof(*full_msg) * full_msg_size);
-	if (!full_msg)
+	if (!(full_msg = malloc(sizeof(*full_msg) * full_msg_size)))
 		errx(-1, "out of memory");
 
-	/* -1 for so we dont to include our punctuation that we previously sent. */
+	/* strlen -1 so we dont to include our punctuation */
 	sprintf(full_msg, "%.*s, who?", (int) strlen(setup) - 1, setup);
 	err = read_payload(cfd, payload_length, full_msg);
 	free(full_msg);
@@ -415,7 +413,6 @@ static int send_resp(int cfd, const char *setup)
 	int num_len, msg_len, total_len, err = 0;
 	char *num, *msg;
 
-	/* Store the length of our message + 1 for punctuation */
 	msg_len = strlen(setup);
 
 	/* Turn our length into a string 23 => "23". */
@@ -486,7 +483,8 @@ static void handle_connection(int sfd, struct joke *joke_arr, int arr_len)
 	char bruh2[] = "EEEEEHHHHH.";
 
 	if (!joke_arr) {
-		stdjoke = malloc(sizeof(*stdjoke));
+		if (!(stdjoke = malloc(sizeof(*stdjoke))))
+			errx(-1, "Out of memory.");
 		stdjoke->setup = bruh1;
 		stdjoke->punch = bruh2;
 	}
@@ -495,12 +493,10 @@ static void handle_connection(int sfd, struct joke *joke_arr, int arr_len)
 	for (;;) {
 		client_fd = accept(sfd, NULL, NULL);
 		if (client_fd < 0) {
-			if (errno == ECONNABORTED) {
-				warnx("Queued connection aborted.");
+			if (errno == ECONNABORTED)
 				continue;
-			} else {
+			else
 				errx(-1, "Fatal accept error");
-			}
 		}
 
 		if (joke_arr) {
@@ -604,16 +600,17 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 
 	if (!(fp = fopen("jokes.txt", "r")))
 		return -1;
+	/* Count how many lines there are in the file */
 	for (jokes = 0; fgets(buffer, 1024, fp); ++jokes)
 		;
 	if ((jokes % 2) != 0) {
 		fclose(fp);
 		return -1;
 	}
+	/* Amount of lines / 2 = number of jokes */
 	jokes >>= 1;
 
-	*joke_arr = malloc(sizeof(**joke_arr) * jokes);
-	if (!*joke_arr)
+	if (!(*joke_arr = malloc(sizeof(**joke_arr) * jokes)))
 		errx(-1, "Out of memory");
 	*arr_len = jokes;
 
