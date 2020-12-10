@@ -130,17 +130,12 @@ static void handle_err(int cfd, int err_flags)
 	 * error description.
 	 */
 	msg_num = err_code[1];
-	switch (err_code[2]) {
-	case 'C':
+	if (err_code[2] == 'C')
 		desc = "content was not correct.";
-		break;
-	case 'L':
+	else if (err_code[2] == 'L')
 		desc = "length value was incorrect.";
-		break;
-	case 'F':
+	else
 		desc = "format was broken.";
-		break;
-	}
 	warnx("[ERR] %s message %c %s", err_code, msg_num, desc);
 }
 
@@ -270,7 +265,7 @@ static int read_payload_length(int fd, int *payload_length)
  * Purpose: Checks for end of sentence punctuation.
  * Return Value: Non zero for success, 0 otherwise.
  */
-static int is_punct(char c)
+static inline int is_punct(char c)
 {
 	return c == '?' || c == '!' || c == '.';
 }
@@ -299,11 +294,11 @@ static int read_payload(int fd, int payload_length, const char *content)
 			err = CONN_ERR;
 			goto free_exit;
 		}
-		bytes_read += n_read;
-		if (bytes_read > payload_length)
+		if (byte == '|')
 			break;
+		bytes_read += n_read;
 		*save++ = byte;
-	} while (!is_punct(byte) && byte != '|');
+	} while (!is_punct(byte) && bytes_read < payload_length);
 
 	/* If we read more or less bytes than promised err */
 	if (bytes_read != payload_length) {
@@ -332,7 +327,7 @@ static int read_payload(int fd, int payload_length, const char *content)
 	 * Else, just make sure punctuation is there.
 	 */
 	if (content) {
-		if (strncmp(content, buffer, strlen(content) - 1))
+		if (strncmp(content, buffer, strlen(content)))
 			err = CONT_ERR;
 	} else {
 		if (!is_punct(buffer[strlen(buffer) - 1]))
