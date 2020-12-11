@@ -40,8 +40,8 @@ struct joke {
 	char *punch;
 };
 
-static int write_data(int, const void *, unsigned int);
 static int read_data(int, void *, unsigned int);
+static int write_data(int, const void *, unsigned int);
 
 /*
  * Purpose: Make sure that the user is actually passing in
@@ -136,7 +136,7 @@ static void handle_err(int cfd, int err_flags)
 		desc = "length value was incorrect.";
 	else
 		desc = "format was broken.";
-	warnx("[ERR] %s message %c %s", err_code, msg_num, desc);
+	warnx("[ERR] %s - message %c %s", err_code, msg_num, desc);
 }
 
 /*
@@ -330,7 +330,7 @@ static int read_payload(int fd, int payload_length, const char *content)
 		if (strncmp(content, buffer, strlen(content)))
 			err = CONT_ERR;
 	} else {
-		if (!is_punct(buffer[strlen(buffer) - 1]))
+		if ((strlen(buffer) == 0) || !is_punct(buffer[strlen(buffer) - 1]))
 			err = CONT_ERR;
 	}
 	printf("\t%s <\n", buffer);
@@ -505,7 +505,6 @@ static void handle_connection(int sfd, struct joke *joke_arr, int arr_len)
 			rand_num %= arr_len;
 			stdjoke = &joke_arr[rand_num];
 		}
-		err = 0;
 
 		/* > Knock, knock. */
 		if ((err = send_knock_knock(client_fd)))
