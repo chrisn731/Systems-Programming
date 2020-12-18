@@ -73,11 +73,14 @@ static int read_data(int fd, void *buf, size_t amt)
 	char *byte = buf;
 	do {
 		n_read = read(fd, byte, amt);
-		if (n_read < 0) {
-			warnx("error during read.");
-		} else {
+		if (n_read > 0) {
 			byte += n_read;
 			amt -= n_read;
+		} else if (n_read == 0) {
+			*byte = 0;
+			return 0;
+		} else {
+			warnx("error during read.");
 		}
 	} while (amt > 0);
 	return save_amt;
@@ -115,12 +118,12 @@ static int get_word(int fd, struct file_node *file)
 	char *store, *save, r_byte;
 
 	lseek(fd, -1, SEEK_CUR);
-	do {
+	for (;;) {
 		word_length += read_data(fd, &r_byte, sizeof(r_byte));
-		if (isalpha(r_byte) || r_byte == '-')
-			valid_letter_count++;
-	} while (!isspace(r_byte));
-
+		if (!isalpha(r_byte) && r_byte != '-')
+			break;
+		++valid_letter_count;
+	}
 	if (valid_letter_count == 0)
 		return word_length;
 
@@ -128,11 +131,12 @@ static int get_word(int fd, struct file_node *file)
 		errx(-1, "Out of memory.");
 	save = store;
 	lseek(fd, -word_length, SEEK_CUR);
-	do {
+	for (;;) {
 		read_data(fd, &r_byte, sizeof(r_byte));
-		if (isalpha(r_byte) || r_byte == '-')
-			*store++ = tolower(r_byte);
-	} while (!isspace(r_byte));
+		if (!isalpha(r_byte) && r_byte != '-')
+			break;
+		*store++ = tolower(r_byte);
+	}
 	*store = '\0';
 	insert_word_entry(file, save);
 	return word_length;
