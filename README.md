@@ -57,7 +57,7 @@ Sample Output:
 0.225234 "./testdirectory/test2.txt" and "./testdirectory/subdir/test3.txt"
 ```
 
-## Asst3 - TBD
+## Asst3 - Knock Knock Joke Server
 A server using C sockets to respond to clients with knock knock knock jokes.
 ```
     Server		    		    Client
@@ -73,10 +73,29 @@ A server using C sockets to respond to clients with knock knock knock jokes.
 > [CONNECTION CLOSED]
 				 [CONNECTION CLOSED] <
 ```
-### KKJ Message System
+### Message System
 In order to achieve consistent message sending and make sure neither the client or server
-are sending broken messages, Asst3 uses the KKJ message system. The client and server send
-messages to each other that denote message type, length, and the payload contents.<br/>
-For example, `REG|12|Knock, knock.|` and `REG|11|Who's there?|`.<br/>
-When an error is encountered, an error message like `ERR|M1CT|` is sent to the host that
-sent the faulty message. After the message is sent, connection is closed to the remote host.
+are sending broken messages, the client and server both use the same message system.
+The client and server send messages to each other that denote message type,
+length, and the payload contents.
+```
+<Message type>|<Message Length>|<Message Payload>|
+
+Example:
+	REG|12|Knock, knock.|
+	REG|11|Who's there?|
+```
+When an error is encountered, an error message is sent to the remote host that sent the
+faulty message. Error messages have a similar format to regular messages but have no message
+length because their payload will always be four characters.
+```
+ERR|M<Section err><Err type>|
+
+<Section err> = 0, 1, 2, 3, 4, 5
+
+<Err type>    = {CT - Content Error} or {LN - Length Error} or {FT - Format error}
+
+Example:
+	ERR|M1FT| - Error on message 1, format error.
+	ERR|M4CT| - Error on message 4, content error.
+```
