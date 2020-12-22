@@ -120,9 +120,10 @@ static int get_word(int fd, struct file_node *file)
 	lseek(fd, -1, SEEK_CUR);
 	for (;;) {
 		word_length += read_data(fd, &r_byte, sizeof(r_byte));
-		if (!isalpha(r_byte) && r_byte != '-')
+		if (isspace(r_byte) || r_byte == 0)
 			break;
-		++valid_letter_count;
+		if (isalpha(r_byte) || r_byte == '-')
+			++valid_letter_count;
 	}
 	if (valid_letter_count == 0)
 		return word_length;
@@ -133,9 +134,10 @@ static int get_word(int fd, struct file_node *file)
 	lseek(fd, -word_length, SEEK_CUR);
 	for (;;) {
 		read_data(fd, &r_byte, sizeof(r_byte));
-		if (!isalpha(r_byte) && r_byte != '-')
+		if (isspace(r_byte) || r_byte == 0)
 			break;
-		*store++ = tolower(r_byte);
+		if (isalpha(r_byte) || r_byte == '-')
+			*store++ = tolower(r_byte);
 	}
 	*store = '\0';
 	insert_word_entry(file, save);
