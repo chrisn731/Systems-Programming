@@ -58,3 +58,25 @@ Sample Output:
 ```
 
 ## Asst3 - TBD
+A server using C sockets to respond to clients with knock knock knock jokes.
+```
+    Server		    		    Client
+==============				==============
+> Knock, knock.
+					Who's there? <
+> Who.
+
+					  Who, who?  <
+> I didn't know you were
+	an owl!
+				      Terrible joke! <
+> [CONNECTION CLOSED]
+				 [CONNECTION CLOSED] <
+```
+### KKJ Message System
+In order to achieve consistent message sending and make sure neither the client or server
+are sending broken messages, Asst3 uses the KKJ message system. The client and server send
+messages to each other that denote message type, length, and the payload contents.<br/>
+For example, `REG|12|Knock, knock.|` and `REG|11|Who's there?|`.<br/>
+When an error is encountered, an error message like `ERR|M1CT|` is sent to the host that
+sent the faulty message. After the message is sent, connection is closed to the remote host.
