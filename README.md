@@ -86,8 +86,9 @@ Example:
 	REG|11|Who's there?|
 ```
 When an error is encountered, an error message is sent to the remote host that sent the
-faulty message. Error messages have a similar format to regular messages but have no message
-length because their payload will always be four characters.
+faulty message. After the message is sent the connection to the remote host is closed.
+Error messages have a similar format to regular messages but have no message length
+because their payload will always be four characters.
 ```
 ERR|M<Section err><Err type>|
 
