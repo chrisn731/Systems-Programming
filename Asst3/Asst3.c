@@ -1,7 +1,6 @@
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <stdarg.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +9,10 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+
+/* If a jokes.txt file is not found, these setup and punch lines will be used */
+#define STD_SETUP "Who."
+#define STD_PUNCH "I didn't know you were an owl!"
 
 /* Convert single integer to char equivalent */
 #define itoc(c) ((c) + 48)
@@ -36,8 +39,8 @@
 #define MSG_ERRS (CONT_ERR | LGTH_ERR | FRMT_ERR)
 
 struct joke {
-	char *setup;
-	char *punch;
+	const char *setup;
+	const char *punch;
 };
 
 static int read_data(int, void *, unsigned int);
@@ -149,8 +152,7 @@ static char *itoa(int x, int *length)
 	char *buf;
 	for (num_digits = 0; x > 0; ++num_digits)
 		x /= 10;
-	buf = malloc(sizeof(*buf) * (num_digits + 1));
-	if (!buf)
+	if (!(buf = malloc(sizeof(*buf) * (num_digits + 1))))
 		errx(-1, "Out of memory.");
 	*length = num_digits;
 	sprintf(buf, "%d", y);
@@ -284,7 +286,8 @@ static int read_payload(int fd, int payload_length, const char *content)
 	int n_read, err = 0, bytes_read = 0;
 	char byte, *buffer, *save;
 
-	buffer = malloc(sizeof(*buffer) * (payload_length + 1));
+	if (!(buffer = malloc(sizeof(*buffer) * (payload_length + 1))))
+		errx(-1, "Out of memory");
 	memset(buffer, 0, payload_length + 1);
 	save = buffer;
 
@@ -423,7 +426,8 @@ static int send_resp(int cfd, const char *setup)
 	 * len = payload_len + num_len + sizeof(REG|||)
 	 */
 	total_len = msg_len + num_len + sizeof("REG|||");
-	msg = malloc(sizeof(*msg) * total_len);
+	if (!(msg = malloc(sizeof(*msg) * total_len)))
+		errx(-1, "Out of memory");
 	/* Create our msg */
 	sprintf(msg, "REG|%s|%s|", num, setup);
 
@@ -478,17 +482,7 @@ static int recv_ads(int cfd)
 static void handle_connection(int sfd, struct joke *joke_arr, int arr_len)
 {
 	struct joke *stdjoke;
-	int client_fd, err;
-	/* Only used if jokes.txt is missing */
-	char std_setup[] = "Who.";
-	char std_punch[] = "I didn't know you were an owl!";
-
-	if (!joke_arr) {
-		if (!(stdjoke = malloc(sizeof(*stdjoke))))
-			errx(-1, "Out of memory.");
-		stdjoke->setup = std_setup;
-		stdjoke->punch = std_punch;
-	}
+	int client_fd, err_flag, rand_num;
 
 	srand(time(NULL));
 	for (;;) {
@@ -497,47 +491,46 @@ static void handle_connection(int sfd, struct joke *joke_arr, int arr_len)
 			if (errno == ECONNABORTED)
 				continue;
 			else
-				errx(-1, "Fatal accept error");
+				err(-1, "Fatal accept error");
 		}
 
-		if (joke_arr) {
-			int rand_num = rand();
-			rand_num %= arr_len;
-			stdjoke = &joke_arr[rand_num];
-		}
+		/* Retrieve joke from joke array */
+		rand_num = rand();
+		rand_num %= arr_len;
+		stdjoke = &joke_arr[rand_num];
 
 		/* > Knock, knock. */
-		if ((err = send_knock_knock(client_fd)))
+		if ((err_flag = send_knock_knock(client_fd)))
 			goto err_and_close;
 
 		/* Who's there? < */
-		if ((err = recv_whos_there(client_fd))) {
-			err |= WHO_ERR;
+		if ((err_flag = recv_whos_there(client_fd))) {
+			err_flag |= WHO_ERR;
 			goto err_and_close;
 		}
 
 		/* > (Setup) */
-		if ((err = send_resp(client_fd, stdjoke->setup)))
+		if ((err_flag = send_resp(client_fd, stdjoke->setup)))
 			goto err_and_close;
 
 		/* (Setup), who? < */
-		if ((err = recv_setup_resp(client_fd, stdjoke->setup))) {
-			err |= SRESP_ERR;
+		if ((err_flag = recv_setup_resp(client_fd, stdjoke->setup))) {
+			err_flag |= SRESP_ERR;
 			goto err_and_close;
 		}
 
 		/* > (Punchline) */
-		if ((err = send_resp(client_fd, stdjoke->punch)))
+		if ((err_flag = send_resp(client_fd, stdjoke->punch)))
 			goto err_and_close;
 
 		/* (Message of disgust) < */
-		if ((err = recv_ads(client_fd)))
-			err |= ADS_ERR;
+		if ((err_flag = recv_ads(client_fd)))
+			err_flag |= ADS_ERR;
 
 		/* Cleanup used resources */
 err_and_close:
-		if (err)
-			handle_err(client_fd, err);
+		if (err_flag)
+			handle_err(client_fd, err_flag);
 		close(client_fd);
 		puts("---------------------------------------------------");
 	}
@@ -595,6 +588,7 @@ static void open_server_sock(const char *port, int *sfd)
 static int get_jokes(struct joke **joke_arr, int *arr_len)
 {
 	FILE *fp;
+	struct joke *new_arr;
 	int jokes;
 	char buffer[1024];
 
@@ -610,34 +604,41 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 	/* Amount of lines / 2 = number of jokes */
 	jokes >>= 1;
 
-	if (!(*joke_arr = malloc(sizeof(**joke_arr) * jokes)))
+	if (!(new_arr = malloc(sizeof(*new_arr) * jokes)))
 		errx(-1, "Out of memory");
 	*arr_len = jokes;
 
 	rewind(fp);
 	for (jokes = 0; jokes < *arr_len; ++jokes) {
-		struct joke *joke = &(*joke_arr)[jokes];
+		struct joke *joke = &new_arr[jokes];
 		int length;
+		char *copy;
 
 		/* get the setup line */
 		memset(buffer, 0, sizeof(buffer));
 		fgets(buffer, 1024, fp);
 		buffer[sizeof(buffer) - 1] = '\0';
 		length = strlen(buffer);
-		joke->setup = malloc(sizeof(char) * length);
-		strncpy(joke->setup, buffer, length);
-		joke->setup[length - 1] = '\0';
+		if (!(copy = malloc(sizeof(char) * length)))
+			errx(-1, "Out of memory");
+		strncpy(copy, buffer, length);
+		copy[length - 1] = '\0';
+		joke->setup = copy;
 
 		/* get the punch line */
 		memset(buffer, 0, sizeof(buffer));
 		fgets(buffer, 1024, fp);
 		buffer[sizeof(buffer) - 1] = '\0';
 		length = strlen(buffer);
-		joke->punch = malloc(sizeof(char) * length);
-		strncpy(joke->punch, buffer, length);
-		joke->punch[length - 1] = '\0';
+		if (!(copy = malloc(sizeof(char) * length)))
+			errx(-1, "Out of memory");
+		strncpy(copy, buffer, length);
+		copy[length - 1] = '\0';
+		joke->punch = copy;
 	}
-	fclose(fp);
+	if (fclose(fp))
+		errx(-1, "Error closing jokes.txt");
+	*joke_arr = new_arr;
 	return 0;
 }
 
@@ -653,8 +654,14 @@ int main(int argc, char **argv)
 	port = atoi(argv[1]);
 	if (port < 5000 || port > 65536)
 		errx(1, "Port number must be between 5000 - 65536");
-	if (get_jokes(&jokes, &jarray_len))
+	if (get_jokes(&jokes, &jarray_len)) {
 		warnx("jokes.txt not found or format corrupted, using 1 joke.");
+		if (!(jokes = malloc(sizeof(*jokes))))
+			errx(-1, "Out of memory");
+		jokes->setup = STD_SETUP;
+		jokes->punch = STD_PUNCH;
+		jarray_len = 1;
+	}
 
 	open_server_sock(argv[1], &server_fd);
 	handle_connection(server_fd, jokes, jarray_len);
