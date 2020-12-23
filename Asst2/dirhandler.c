@@ -95,7 +95,6 @@ static DIR *attempt_opendir(const char *dir_path)
 			warnx("Can not access '%s'", dir_path);
 		else
 			warnx("Unknown error while attempting to access '%s'", dir_path);
-		pthread_exit(NULL);
 	}
 	return dirptr;
 }
@@ -112,7 +111,8 @@ static int num_dir_entries(DIR *dirp)
 
 	while ((dir_entry = readdir(dirp)) != NULL) {
 		if (valid_dir(dir_entry) ||
-			(dir_entry->d_type == DT_REG && file_isnt_program(dir_entry->d_name))) {
+		   (dir_entry->d_type == DT_REG &&
+		    file_isnt_program(dir_entry->d_name))) {
 				num++;
 		}
 	}
@@ -187,13 +187,16 @@ static void parse_dir(DIR *dirp, pthread_t *pool, struct thread_data *t_data)
 void *start_dirhandler(void *dir_data)
 {
 	struct thread_data *t_data = dir_data;
-	pthread_t *thread_pool;
 	DIR *dirp;
-	int i, num_entries;
+	int num_entries;
 
-	dirp = attempt_opendir(t_data->filepath);
+	if (!(dirp = attempt_opendir(t_data->filepath)))
+		goto free_and_exit;
 	/* Skip empty directories */
 	if ((num_entries = num_dir_entries(dirp)) != 0) {
+		pthread_t *thread_pool;
+		int i;
+
 		thread_pool = new_pool(num_entries);
 		parse_dir(dirp, thread_pool, t_data);
 		for (i = 0; i < num_entries; i++)
@@ -206,6 +209,7 @@ void *start_dirhandler(void *dir_data)
 	 * that is passed to our threads. This differs from our
 	 * filehandler.
 	 */
+free_and_exit:
 	free(t_data->filepath);
 	free(t_data);
 	return NULL;
