@@ -24,7 +24,8 @@ static void insert_word_entry(struct file_node *file, char *word_to_insert)
 	int strcmp_ret;
 
 	for (parser = &file->word; *parser != NULL; parser = &(*parser)->next) {
-		if (!(strcmp_ret = strcmp((*parser)->word, word_to_insert))) {
+		strcmp_ret = strcmp((*parser)->word, word_to_insert)
+		if (!strcmp_ret) {
 			/* Our word alredy exists in our list */
 			(*parser)->count++;
 			free(word_to_insert);
@@ -102,7 +103,6 @@ static int open_file(const char *filepath)
 			warnx("Limit of open files has been reached.");
 		else
 			warnx("Error accessing: '%s'", filepath);
-		pthread_exit(NULL);
 	}
 	return fd;
 }
@@ -202,12 +202,12 @@ void *start_filehandler(void *data)
 	struct file_node *new_file;
 	int fd;
 
-	fd = open_file(t_data->filepath);
-	new_file = create_file_entry(t_data->db_ptr, t_data->filepath);
-	parse_file(fd, new_file);
-	update_probabilities(new_file);
-
+	if ((fd = open_file(t_data->filepath)) > 0) {
+		new_file = create_file_entry(t_data->db_ptr, t_data->filepath);
+		parse_file(fd, new_file);
+		update_probabilities(new_file);
+		close(fd);
+	}
 	free(t_data);
-	close(fd);
 	return NULL;
 }
