@@ -9,12 +9,13 @@
 #include "dirhandler.h"
 #include "data.h"
 
-#define RED 	"\033[0;31m"
-#define GREEN 	"\033[0;32m"
-#define YELLOW 	"\033[0;33m"
-#define BLUE 	"\033[0;34m"
-#define CYAN 	"\033[0;36m"
-#define RESET 	"\033[0m"
+/* Color codes */
+#define RED	"\033[0;31m"
+#define GREEN	"\033[0;32m"
+#define YELLOW	"\033[0;33m"
+#define BLUE	"\033[0;34m"
+#define CYAN	"\033[0;36m"
+#define RESET	"\033[0m"
 
 struct word_info {
 	struct word_info *next;
@@ -320,19 +321,20 @@ static void print_values(const struct file_pair *ptr)
 {
 	for (; ptr; ptr = ptr->next) {
 		double JSD = ptr->JSD;
-
-		if (JSD <= .1)
-		       printf(RED);
-		else if (JSD <=.15)
-			printf(YELLOW);
-		else if (JSD <= .2)
-			printf(GREEN);
-		else if (JSD <=.25)
-			printf(CYAN);
-		else if (JSD <= .3)
-			printf(BLUE);
-		printf("%f ", JSD);
-		printf(RESET);
+		const char *color;
+		if (JSD <= 0.1)
+			color = RED;
+		else if (JSD <= 0.15)
+			color = YELLOW;
+		else if (JSD <= 0.2)
+			color = GREEN;
+		else if (JSD <= 0.25)
+			color = CYAN;
+		else if (JSD <= 0.3)
+			color = BLUE;
+		else
+			color = RESET;
+		printf("%s%f%s ", color, JSD, RESET);
 		printf("\"%s\" and \"%s\"\n", ptr->file1->filepath, ptr->file2->filepath);
 	}
 }
@@ -357,9 +359,9 @@ int main(int argc, char **argv)
 	/* At this point, all newly spawned threads have finished. */
 
 	if (db->first_node == NULL)
-		errx(1, "No files in the database.");
+		errx(1, "No files found.");
 	if (db->first_node->next == NULL)
-		errx(1, "Only 1 file in the database.");
+		errx(1, "Only 1 file found.");
 
 	sort_files(db);
 	pair_list = compare_files(db);
