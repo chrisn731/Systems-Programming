@@ -51,12 +51,22 @@ found directories will be compared together. Therefore given n files, there will
 (n CHOOSE 2) comparisons.<br/>
 Sample Output:
 ```
-./detector testdirectory
-0.100000 "./testdirectory/test1.txt" and "./testdirectory/test2.txt"
-0.150515 "./testdirectory/test1.txt" and "./testdirectory/subdir/test3.txt"
-0.225234 "./testdirectory/test2.txt" and "./testdirectory/subdir/test3.txt"
-```
+Example Directory Structure:
+	+test_dir
+	|
+	+----+sub_dir
+	|    |
+	|    +-->test3.txt
+	|
+	+--->test1.txt
+	|
+	+--->test2.txt
 
+Usage: ./detector test_dir
+0.100000 "./testdirectory/test1.txt" and "./testdirectory/test2.txt"
+0.150515 "./testdirectory/test1.txt" and "./testdirectory/sub_dir/test3.txt"
+0.225234 "./testdirectory/test2.txt" and "./testdirectory/sub_dir/test3.txt"
+```
 ## Asst3 - Knock Knock Joke Server
 A server using C sockets to respond to clients with knock knock knock jokes.
 ```
