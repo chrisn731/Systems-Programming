@@ -589,34 +589,47 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 {
 	FILE *fp;
 	struct joke *new_arr;
-	int jokes;
+	int joke_lines = 0;
 	char buffer[1024];
 
-	if (!(fp = fopen("jokes.txt", "r")))
+	if (!(fp = fopen("jokes.txt", "r"))) {
+		warnx("Jokes.txt not found, using 1 joke.");
 		return -1;
-	/* Count how many lines there are in the file */
-	for (jokes = 0; fgets(buffer, 1024, fp); ++jokes)
-		;
-	if ((jokes % 2) != 0) {
+	}
+	/* Count how many lines there are in the file that have jokes */
+	while (fgets(buffer, 1024, fp)) {
+		if (*buffer != '\n')
+			joke_lines++;
+	}
+	if (!joke_lines) {
+		warnx("No jokes found in jokes.txt, using 1 joke.");
 		fclose(fp);
 		return -1;
 	}
-	/* Amount of lines / 2 = number of jokes */
-	jokes >>= 1;
+	if ((joke_lines % 2) != 0) {
+		warnx("Jokes.txt format corrupted, using 1 joke.");
+		fclose(fp);
+		return -1;
+	}
+	/* joke lines =  number of complete jokes (setup line + punch) */
+	joke_lines >>= 1;
 
-	if (!(new_arr = malloc(sizeof(*new_arr) * jokes)))
+	if (!(new_arr = malloc(sizeof(*new_arr) * joke_lines)))
 		errx(-1, "Out of memory");
-	*arr_len = jokes;
+	*arr_len = joke_lines;
+	*joke_arr = new_arr;
 
 	rewind(fp);
-	for (jokes = 0; jokes < *arr_len; ++jokes) {
-		struct joke *joke = &new_arr[jokes];
+	for (; joke_lines > 0; --joke_lines) {
+		struct joke *joke = new_arr++;
 		int length;
 		char *copy;
 
 		/* get the setup line */
 		memset(buffer, 0, sizeof(buffer));
-		fgets(buffer, 1024, fp);
+		do
+			fgets(buffer, 1024, fp);
+		while (*buffer == '\n');
 		buffer[sizeof(buffer) - 1] = '\0';
 		length = strlen(buffer);
 		if (!(copy = malloc(sizeof(char) * length)))
@@ -627,7 +640,9 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 
 		/* get the punch line */
 		memset(buffer, 0, sizeof(buffer));
-		fgets(buffer, 1024, fp);
+		do
+			fgets(buffer, 1024, fp);
+		while (*buffer == '\n');
 		buffer[sizeof(buffer) - 1] = '\0';
 		length = strlen(buffer);
 		if (!(copy = malloc(sizeof(char) * length)))
@@ -638,7 +653,6 @@ static int get_jokes(struct joke **joke_arr, int *arr_len)
 	}
 	if (fclose(fp))
 		errx(-1, "Error closing jokes.txt");
-	*joke_arr = new_arr;
 	return 0;
 }
 
@@ -655,7 +669,6 @@ int main(int argc, char **argv)
 	if (port < 5000 || port > 65536)
 		errx(1, "Port number must be between 5000 - 65536");
 	if (get_jokes(&jokes, &jarray_len)) {
-		warnx("jokes.txt not found or format corrupted, using 1 joke.");
 		if (!(jokes = malloc(sizeof(*jokes))))
 			errx(-1, "Out of memory");
 		jokes->setup = STD_SETUP;
