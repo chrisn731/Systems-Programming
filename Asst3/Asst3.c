@@ -511,7 +511,8 @@ static void handle_connection(int sfd, struct joke *joke_arr, int arr_len)
 		    (err_flag = recv_ads(client_fd)))
 			handle_err(client_fd, err_flag);
 
-		close(client_fd);
+		if (close(client_fd) == -1)
+			err(-1, "Fatal Error closing client connection.");
 		puts("---------------------------------------------------");
 	}
 
@@ -544,7 +545,8 @@ static void open_server_sock(const char *port, int *sfd)
 			(listen(*sfd, BACKLOG) == 0)) {
 			break;
 		}
-		close(*sfd);
+		if (close(*sfd) == -1)
+			err(-1, "Fatal error closing incomplete server descriptor.");
 	}
 	if (!addr)
 		errx(1, "Couldn't bind on %s", port);
@@ -664,6 +666,7 @@ int main(int argc, char **argv)
 	handle_connection(server_fd, jokes, jarray_len);
 
 	/* Should never be reached. */
-	close(server_fd);
+	if (close(server_fd) == -1)
+		err(-1, "Error while closing server descriptor.");
 	return 0;
 }
