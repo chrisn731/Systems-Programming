@@ -53,7 +53,6 @@ void *mymalloc(size_t size, const char *filename, int line_number)
 	if (!size)
 		return NULL;
 
-	/* If the first 2 bytes of our heap are 0 bytes, then we haven't initialized */
 	if (!initialized) {
 		initialize_heap();
 		initialized = 1;
@@ -76,19 +75,15 @@ void *mymalloc(size_t size, const char *filename, int line_number)
 		return NULL;
 	}
 
-	/*
-	 * If our block is bigger than our requested size we need to split the block.
-	 * If we are splitting, make sure that we have enough bytes the end to
-	 * actually split. For example: Given a 4096 byte heap, if our meta
-	 * data is 2 bytes and our requested size is 4093, that means
-	 * we have 1 byte left to work with.
-	 * We cannot edit that last byte without going out of range.
-	 */
-	if (meta->block_size > size &&
-	((heap_byte + size + sizeof(*meta)) <= heap_boundary)) {
-		struct header_data *next_block = (struct header_data *) (heap_byte + size);
-		next_block->free = 1;
-		next_block->block_size = meta->block_size - (size + sizeof(*next_block));
+	/* If our block is bigger than our requested size we need to split the block. */
+	if (meta->block_size > size) {
+		struct header_data *next_meta = (struct header_data *) (heap_byte + size);
+		/* When we split the block, will our split block header data fit? */
+		if ((char *)(next_meta + 1) <= heap_boundary) {
+			next_meta->free = 1;
+			next_meta->block_size = meta->block_size - (size + sizeof(*next_meta));
+		}
+
 	}
 	meta->free = 0;
 	meta->block_size = size;
