@@ -18,13 +18,13 @@
  * 	Read README.PDF for more documentation.
  */
 
+#include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
-#define DEBUG 0
-#define ARRAY_SIZE(X) (int)(sizeof(X)/sizeof(*(X)))
+#define ARRAY_SIZE(arr) ((int) (sizeof(arr)/sizeof(*(arr))))
 
 /* Input Token struct to be used to make a linked list of tokens */
 struct input_token {
@@ -38,7 +38,6 @@ struct C_token {
 	const char *operator;
 };
 
-void die(const char *msg);
 void free_list(struct input_token *);
 void parse_tokens(struct input_token *);
 void print_token(const char *type, const char *tok);
@@ -144,17 +143,6 @@ const struct C_token C_keywords[] = {
 };
 
 /*
- * Fatal error exit function.
- * Only called if program runs into unrecoverable error.
- * Does not return.
- */
-void die(const char *err)
-{
-	fprintf(stderr, "%s\n", err);
-	exit(1);
-}
-
-/*
  * Copies n characters from src to dest.
  * At n + 1 characters places a null byte.
  */
@@ -162,7 +150,6 @@ void strcopy(const char *src, char *dest, int n)
 {
 	while (n--)
 		*dest++ = *src++;
-
 	*dest = '\0';
 }
 
@@ -173,9 +160,8 @@ void strcopy(const char *src, char *dest, int n)
 int is_float(const char *str)
 {
 	while (*str) {
-		if (*str == '.' && str[1] != '\0') {
+		if (*str == '.' && str[1] != '\0')
 			return 1;
-		}
 		str++;
 	}
 	return 0;
@@ -189,9 +175,8 @@ int is_octal(const char *str)
 {
 	if (*str == '0' && str[1] != '\0') {
 		while (*++str) {
-			if (*str < '0' || *str > '7') {
+			if (*str < '0' || *str > '7')
 				return 0;
-			}
 		}
 		return 1;
 	}
@@ -209,9 +194,8 @@ int is_hex(const char *str)
 	if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
 		str += 2;
 		while ((curr_char = *str++)) {
-			if (!isxdigit(curr_char)) {
+			if (!isxdigit(curr_char))
 				return 0;
-			}
 		}
 		return 1;
 	}
@@ -221,7 +205,7 @@ int is_hex(const char *str)
 /* Prints token type and the token to the user */
 void print_token(const char *type, const char *token)
 {
-	if (type != NULL)
+	if (type)
 		printf("%s: \"%s\"\n", type, token);
 	else
 		printf("Error on finding type for: \"%s\"\n", token);
@@ -237,12 +221,11 @@ struct input_token *new_token_node(int toklen)
 
 	new = malloc(sizeof(*new));
 	if (!new)
-		die("Error allocating memeory to new token node");
+		err(-1, "Error allocating memory.");
 	new->input = malloc(sizeof(char) * (toklen + 1));
 	if (!new->input)
-		die("Error allocating memory to new token node string");
+		err(-1, "Error allocating memory.");
 	new->next = NULL;
-
 	return new;
 }
 
@@ -483,6 +466,8 @@ void sanitize_symbol(struct input_token **token_node)
 	case '^':
 	case '?':
 	case ':':
+	/* If we dont know the symbol, just split it off. */
+	default:
 		toklen = 1;
 		break;
 
@@ -502,7 +487,10 @@ void sanitize_symbol(struct input_token **token_node)
 	 * '>', '-', or '='
 	 */
 	case '-':
-		toklen = (parser[1] == '>' || parser[1] == '-' || parser[1] == '=') ? 2 : 1;
+		if (parser[1] == '>' || parser[1] == '-' || parser[1] == '=')
+			toklen = 2;
+		else
+			toklen = 1;
 		break;
 	/*
 	 * -, |, +, & can can either be themselves: '+', '|', etc.
@@ -530,11 +518,6 @@ void sanitize_symbol(struct input_token **token_node)
 		else
 			toklen = 1;
 		break;
-
-	/* If we dont know the symbol, just split it off. */
-	default:
-		toklen = 1;
-		break;
 	}
 	/* If our symbol doesnt take up the full length of the string. Then split it */
 	if (full_token_length != toklen)
@@ -552,16 +535,12 @@ void sanitize_tokens(struct input_token **list)
 	const char *token;
 	while (*list) {
 		token = (*list)->input;
-		if (isalpha(*token)) {
-			/* Sanitize word */
+		if (isalpha(*token))
 			sanitize_word(list);
-		} else if (isdigit(*token)) {
-			/* sanitize number */
+		else if (isdigit(*token))
 			sanitize_num(list);
-		} else {
-			/* sanitize symbol */
+		else
 			sanitize_symbol(list);
-		}
 		list = &(*list)->next;
 	}
 }
@@ -571,9 +550,11 @@ int main(int argc, char **argv)
 	struct input_token *head;
 
 	if (argc < 2)
-		die("Please include a string to tokenize.");
+		errx(1, "Please include a string to tokenize.\n"
+			" Usage: ./tokenizer <Token string>");
 	if (argc > 2)
-		die("Received too many inputs. Please input as one string.");
+		errx(1, "Too many inputs please input tokens as one string.\n"
+			" Usage: ./tokenizer <Token string>");
 
 
 	/* Create token List */
@@ -588,6 +569,5 @@ int main(int argc, char **argv)
 	parse_tokens(head);
 	/* Free memory */
 	free_list(head);
-
 	return 0;
 }
