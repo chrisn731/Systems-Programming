@@ -43,7 +43,7 @@ static struct word_info *create_word_info(char *word, struct file_word *w1, stru
 	struct word_info *fw;
 
 	if (!(fw = malloc(sizeof(*fw))))
-		errx(-1, "Out of memory.");
+		err(-1, "Memory alloc error.");
 	fw->file1_prob = w1 != NULL ? w1->prob : 0;
 	fw->file2_prob = w2 != NULL ? w2->prob : 0;
 	fw->mean = (fw->file1_prob + fw->file2_prob) / 2;
@@ -61,7 +61,7 @@ static struct file_pair *create_file_pair(struct file_node *f1, struct file_node
 	struct file_pair *fp;
 
 	if (!(fp = malloc(sizeof(struct file_pair))))
-		errx(-1, "Out of memory.");
+		err(-1, "Memory alloc error.");
 	fp->file1 = f1;
         fp->file2 = f2;
 	fp->first_word_info = NULL;
@@ -112,6 +112,8 @@ static char *parent_dir_alloc(const char *fpath)
 	if (fpath[fpath_length - 1] != '/')
 		fpath_length++;
 	parent_dir = malloc(sizeof(*parent_dir) * (fpath_length + 1));
+	if (!parent_dir)
+		err(-1, "Memory alloc error");
 	strcpy(parent_dir, fpath);
 	parent_dir[fpath_length - 1] = '/';
 	parent_dir[fpath_length] = '\0';
@@ -158,7 +160,7 @@ static void sort_pairs(struct file_pair **fp)
 static double compute_JSD(struct file_pair *fp)
 {
 	struct word_info *wi;
-	double pr1, pr2, JSD;
+	double pr1, pr2;
 	double KLD1 = 0;
         double KLD2 = 0;
 
@@ -170,11 +172,68 @@ static double compute_JSD(struct file_pair *fp)
 		if (pr2 != 0.0)
 			KLD2 += pr2 * (log(pr2/wi->mean) / log(10));
 	}
-	JSD = (KLD1 + KLD2) / 2;
-
-	return JSD;
+	return (KLD1 + KLD2) / 2;
 }
 
+/*
+ * Purpose: Find similar words between two file word trees. If a similar word
+ * is found, or they don't share a certain word, create a new word info node.
+ * Return Value: None.
+ */
+static void find_similar_words(struct file_word *tree1, struct file_word *tree2,
+				struct word_info ***info_node)
+{
+	struct file_word *b_root;
+	int strcmp_ret;
+
+	/* Preorder Traversal */
+	if (tree1) {
+		b_root = tree2;
+		while (tree2) {
+			strcmp_ret = strcmp(tree1->word, tree2->word);
+			if (strcmp_ret == 0) {
+				**info_node = create_word_info(tree1->word, tree1, tree2);
+				break;
+			} else if (strcmp_ret > 0) {
+				/* Tree1->word > tree2->word */
+				tree2 = tree2->right;
+			} else {
+				/* Tree1->word < tree2->word */
+				tree2 = tree2->left;
+			}
+		}
+		if (!tree2)
+			**info_node = create_word_info(tree1->word, tree1, NULL);
+		*info_node = &(**info_node)->next;
+		find_similar_words(tree1->left, b_root, info_node);
+		find_similar_words(tree1->right, b_root, info_node);
+	}
+}
+
+/*
+ * Purpose: Compare the words in tree 2 to the word info list. If a word is
+ * in tree 2, but not in the word info list, append it to the list.
+ * Return Value: None.
+ */
+static void cmp_file_info_list(struct file_word *tnode, struct word_info *list,
+				struct word_info ***curr)
+{
+	struct word_info *ptr;
+
+	/* Preorder Traversal */
+	if (tnode) {
+		for (ptr = list; ptr; ptr = ptr->next) {
+			if (strcmp(tnode->word, ptr->word) == 0)
+				break;
+		}
+		if (!ptr) {
+			**curr = create_word_info(tnode->word, NULL, tnode);
+			*curr = &(**curr)->next;
+		}
+		cmp_file_info_list(tnode->left, list, curr);
+		cmp_file_info_list(tnode->right, list, curr);
+	}
+}
 
 /*
  * Purpose: Creates a list of "information nodes" from the token distributions
@@ -183,46 +242,15 @@ static double compute_JSD(struct file_pair *fp)
  * probability of that word of the file pair.
  * Return value: None.
  */
-static void create_info_list(struct file_pair **fp)
+static void create_info_list(struct file_pair *fp)
 {
-	struct file_word *file1_word_ptr = (*fp)->file1->word;
-	struct file_word *file2_word_ptr;
 	struct word_info *first_word_info = NULL;
-	struct word_info *ptr, **info_node = &first_word_info;
+	struct word_info **info_node = &first_word_info;
 
-	while (file1_word_ptr != NULL) {
-		file2_word_ptr = (*fp)->file2->word;
-		while (file2_word_ptr != NULL) {
-			if (!(strcmp(file1_word_ptr->word, file2_word_ptr->word))) {
-				*info_node = create_word_info(file1_word_ptr->word, file1_word_ptr, file2_word_ptr);
-				file1_word_ptr = file1_word_ptr->next;
-				info_node = &(*info_node)->next;
-				break;
-			}
-			file2_word_ptr = file2_word_ptr->next;
-		}
-		if (!file2_word_ptr) {
-			*info_node = create_word_info(file1_word_ptr->word, file1_word_ptr, NULL);
-			info_node = &(*info_node)->next;
-			file1_word_ptr = file1_word_ptr->next;
-		}
-	}
-
-	/* Now compare file2 to "word info" list. If a word is missing, add it. */
-	file2_word_ptr = (*fp)->file2->word;
-	while (file2_word_ptr != NULL) {
-		for (ptr = first_word_info; ptr; ptr = ptr->next) {
-			if (!strcmp(file2_word_ptr->word, ptr->word))
-				break;
-		}
-		if (!ptr) {
-			*info_node = create_word_info(file2_word_ptr->word, NULL, file2_word_ptr);
-			info_node = &(*info_node)->next;
-		}
-		file2_word_ptr = file2_word_ptr->next;
-	}
-	(*fp)->num_words = (*fp)->file1->num_words + (*fp)->file2->num_words;
-	(*fp)->first_word_info = first_word_info;
+	find_similar_words(fp->file1->word, fp->file2->word, &info_node);
+	cmp_file_info_list(fp->file2->word, first_word_info, &info_node);
+	fp->num_words = fp->file1->num_words + fp->file2->num_words;
+	fp->first_word_info = first_word_info;
 }
 
 
@@ -239,7 +267,7 @@ static struct file_pair *compare_files(struct file_database *db)
 	for (file_ptr = db->first_node; file_ptr; file_ptr = file_ptr->next) {
 		for (curr = file_ptr->next; curr; curr = curr->next) {
 			*fp = create_file_pair(file_ptr, curr);
-			create_info_list(fp);
+			create_info_list(*fp);
 			fp = &(*fp)->next;
 		}
 	}
@@ -333,7 +361,8 @@ static void print_values(const struct file_pair *ptr)
 		else if (JSD <= 0.3)
 			color = BLUE;
 		else
-			color = RESET;
+			color = RESET; /* Should never happen */
+
 		printf("%s%f%s ", color, JSD, RESET);
 		printf("\"%s\" and \"%s\"\n", ptr->file1->filepath, ptr->file2->filepath);
 	}

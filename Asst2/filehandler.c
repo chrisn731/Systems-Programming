@@ -12,30 +12,31 @@
 #include "filehandler.h"
 
 /*
- * Purpose: Inserts a word into a file's word list. These words are always
- * inserted alphabetically. If the word already exists, increments the
- * count of the word. Regardless if the word has a duplicate or not
- * the file total word count is also incremented.
+ * Purpose: Inserts a word into a file's word binary tree. Height of the tree
+ * will be log2(num unique words in file). If the word is already in the tree,
+ * it's frequency count is incremented. Finally, the number of words in the
+ * file is also incremented.
  * Return Value: None.
  */
 static void insert_word_entry(struct file_node *file, char *word_to_insert)
 {
-	struct file_word *new, **parser;
+	struct file_word *new, **parser = &file->word;
 	int strcmp_ret;
 
-	for (parser = &file->word; *parser != NULL; parser = &(*parser)->next) {
-		strcmp_ret = strcmp((*parser)->word, word_to_insert)
-		if (!strcmp_ret) {
+	while (*parser) {
+		strcmp_ret = strcmp((*parser)->word, word_to_insert);
+		if (strcmp_ret == 0) {
 			/* Our word alredy exists in our list */
 			(*parser)->count++;
 			free(word_to_insert);
 			goto done;
 		} else if (strcmp_ret > 0) {
-			break;
+			parser = &(*parser)->left;
+		} else {
+			parser = &(*parser)->right;
 		}
 	}
 	new = new_word(word_to_insert);
-	new->next = *parser;
 	*parser = new;
 done:
 	file->num_words++;
@@ -78,10 +79,9 @@ static int read_data(int fd, void *buf, size_t amt)
 			byte += n_read;
 			amt -= n_read;
 		} else if (n_read == 0) {
-			*byte = 0;
 			return 0;
 		} else {
-			warnx("error during read.");
+			warn("Error during read.");
 		}
 	} while (amt > 0);
 	return save_amt;
@@ -108,40 +108,57 @@ static int open_file(const char *filepath)
 }
 
 /*
+ * Purpose: Detects whether a character is valid for storing as a word.
+ * Return Value: 0 if non valid, non zero otherwise.
+ */
+static inline int valid_char(char c)
+{
+	return isalpha(c) || c == '-';
+}
+
+/*
  * Purpose: Retrieves a single word from a file. After word is retrieved hands
  * off the found word to create_word_entry() to log it.
  * Return value: Number of bytes read.
  */
 static int get_word(int fd, struct file_node *file)
 {
-	int word_length = 0, valid_letter_count = 0;
-	char *store, *save, r_byte;
+	int bytes_parsed = 0, valid_letter_count = 0, buf_size = 32;
+	int i, nr;
+	char *word, *save, r_byte;
 
-	lseek(fd, -1, SEEK_CUR);
-	for (;;) {
-		word_length += read_data(fd, &r_byte, sizeof(r_byte));
-		if (isspace(r_byte) || r_byte == 0)
-			break;
-		if (isalpha(r_byte) || r_byte == '-')
-			++valid_letter_count;
-	}
-	if (valid_letter_count == 0)
-		return word_length;
+	word = malloc(sizeof(*word) * buf_size);
+	if (!word)
+		err(-1, "Memory alloc error");
 
-	if (!(store = malloc(sizeof(*store) * (valid_letter_count + 1))))
-		errx(-1, "Out of memory.");
-	save = store;
-	lseek(fd, -word_length, SEEK_CUR);
-	for (;;) {
-		read_data(fd, &r_byte, sizeof(r_byte));
-		if (isspace(r_byte) || r_byte == 0)
+	i = 0;
+	while ((nr = read_data(fd, &r_byte, sizeof(r_byte))) > 0) {
+		bytes_parsed += nr;
+		if (valid_char(r_byte)) {
+			valid_letter_count++;
+			/*
+			 * In the unlikely case we come across a word longer
+			 * than 32 bytes, extend the buffer.
+			 */
+			if (i >= buf_size) {
+				save = realloc(word, sizeof(*word) * buf_size * 2);
+				if (!save)
+					err(-1, "Memory realloc error.");
+				word = save;
+				buf_size *= 2;
+			}
+			word[i++] = tolower(r_byte);
+		} else if (isspace(r_byte)) {
 			break;
-		if (isalpha(r_byte) || r_byte == '-')
-			*store++ = tolower(r_byte);
+		}
 	}
-	*store = '\0';
+	word[i] = '\0';
+	/* Truncate our buffer to match the actual size of the word */
+	save = realloc(word, sizeof(*word) * (valid_letter_count + 1));
+	if (!save)
+		err(-1, "Memory realloc error");
 	insert_word_entry(file, save);
-	return word_length;
+	return bytes_parsed;
 }
 
 /*
@@ -152,9 +169,9 @@ static long file_size(int fd)
 {
 	long size;
 
-	if ((size = lseek(fd, 0, SEEK_END)) < 0)
+	if ((size = lseek(fd, 0, SEEK_END)) == -1 ||
+	     lseek(fd, 0, SEEK_SET) == -1)
 		size = 0;
-	lseek(fd, 0, SEEK_SET);
 	return size;
 }
 
@@ -172,9 +189,12 @@ static void parse_file(int fd, struct file_node *file)
 	/* Dont add empty files to the list. */
 	total_bytes = file_size(fd);
 	while (total_bytes > 0) {
-		n_read = read_data(fd, &r_byte, sizeof(r_byte));
-		if (isalpha(r_byte) || r_byte == '-')
+		if ((n_read = read_data(fd, &r_byte, sizeof(r_byte))) == 0)
+			break;
+		if (valid_char(r_byte)) {
+			lseek(fd, -1, SEEK_CUR);
 			n_read = get_word(fd, file);
+		}
 		total_bytes -= n_read;
 	}
 }
@@ -183,13 +203,13 @@ static void parse_file(int fd, struct file_node *file)
  * Purpose: Parses through a file's words and updates their appearance frequencies.
  * Return Value: None.
  */
-static void update_probabilities(struct file_node *file)
+static void update_probabilities(struct file_word *root, unsigned int total_words)
 {
-	struct file_word *parser = file->word;
-	unsigned int total_num_words = file->num_words;
-
-	for (parser = file->word; parser != NULL; parser = parser->next)
-		parser->prob = (double) parser->count / total_num_words;
+	if (root) {
+		root->prob = (double) root->count / total_words;
+		update_probabilities(root->left, total_words);
+		update_probabilities(root->right, total_words);
+	}
 }
 
 /*
@@ -205,8 +225,9 @@ void *start_filehandler(void *data)
 	if ((fd = open_file(t_data->filepath)) > 0) {
 		new_file = create_file_entry(t_data->db_ptr, t_data->filepath);
 		parse_file(fd, new_file);
-		update_probabilities(new_file);
-		close(fd);
+		update_probabilities(new_file->word, new_file->num_words);
+		if (close(fd) == -1)
+			err(-1, "Error closing %s.", new_file->filepath);
 	}
 	free(t_data);
 	return NULL;
