@@ -56,7 +56,7 @@ static pthread_t *new_pool(int num_threads)
  * Purpose: Checks if path matches '.' or '..'.
  * Return Value: Returns non zero if path is not '.' or '..'
  */
-static int not_dots(const char *path)
+static inline int not_dots(const char *path)
 {
 	return strcmp(path, "..") && strcmp(path, ".");
 }
@@ -65,7 +65,7 @@ static int not_dots(const char *path)
  * Purpose: Helper function to make sure we dont traverse into '.' or '..'
  * Return Value: Non-zero if dir entry (de) is a directory and is not '.' or '..'
  */
-static int valid_dir(struct dirent *de)
+static inline int valid_dir(struct dirent *de)
 {
 	return de->d_type == DT_DIR && not_dots(de->d_name);
 }
@@ -76,7 +76,7 @@ static int valid_dir(struct dirent *de)
  * Return Value: Returns non-zero if the file name does not match the
  * program name. 0 otherwise.
  */
-static int file_isnt_program(const char *filename)
+static inline int file_isnt_program(const char *filename)
 {
 	return strcmp(PROGRAM_NAME, filename);
 }
@@ -90,7 +90,7 @@ static DIR *attempt_opendir(const char *dir_path)
 {
 	DIR *dirptr;
 
-	if (!(dirptr = opendir(dir_path))) {
+	if ((dirptr = opendir(dir_path)) == NULL) {
 		if (errno == EACCES)
 			warnx("Can not access '%s'", dir_path);
 		else
@@ -112,42 +112,27 @@ static int num_dir_entries(DIR *dirp)
 	while ((dir_entry = readdir(dirp)) != NULL) {
 		if (valid_dir(dir_entry) ||
 		   (dir_entry->d_type == DT_REG &&
-		    file_isnt_program(dir_entry->d_name))) {
-				num++;
-		}
+		    file_isnt_program(dir_entry->d_name)))
+			num++;
 	}
 	rewinddir(dirp);
 	return num;
 }
 
 /*
- * Purpose: Sets up a call to create a new directory handler thread.
- * Return Value: None. Does not return.
+ * Purpose: Sets up to create a new thread that calls thread_func with
+ * argument t_data.
+ * Return Value: None.
  */
-static void
-setup_dir_thread(pthread_t *thread, struct thread_data *t_data, const char *fname)
-{
-	char *dirpath;
-	struct thread_data *new;
-
-	dirpath = new_path(t_data->filepath, fname, DIR_TYPE);
-	new = new_thread_data(t_data->db_ptr, dirpath);
-	pthread_create(thread, NULL, start_dirhandler, new);
-}
-
-/*
- * Purpose: Sets up a call to create a new file handler thred.
- * Return Value: None. Does not return.
- */
-static void
-setup_file_thread(pthread_t *thread, struct thread_data *t_data, const char *fname)
+static void spinup_new_thread(pthread_t *thread, struct thread_data *t_data,
+			const char *fname, void *(*thread_func)(void *), int type)
 {
 	char *filepath;
 	struct thread_data *new;
 
-	filepath = new_path(t_data->filepath, fname, FILE_TYPE);
+	filepath = new_path(t_data->filepath, fname, type);
 	new = new_thread_data(t_data->db_ptr, filepath);
-	pthread_create(thread, NULL, start_filehandler, new);
+	pthread_create(thread, NULL, *thread_func, new);
 }
 
 /*
@@ -167,11 +152,13 @@ static void parse_dir(DIR *dirp, pthread_t *pool, struct thread_data *t_data)
 		if (dir_entry->d_type == DT_DIR) {
 			/* invoke dir handler */
 			if (not_dots(dir_entry->d_name))
-				setup_dir_thread(pool++, t_data, dir_entry->d_name);
+				spinup_new_thread(pool++, t_data, dir_entry->d_name,
+							start_dirhandler, DIR_TYPE);
 		} else if (dir_entry->d_type == DT_REG) {
 			/* invoke file handler */
 			if (file_isnt_program(dir_entry->d_name))
-				setup_file_thread(pool++, t_data, dir_entry->d_name);
+				spinup_new_thread(pool++, t_data, dir_entry->d_name,
+							start_filehandler, FILE_TYPE);
 		} else {
 			warnx("'%s' is not a regular file or directory, skipping.", dir_entry->d_name);
 		}
@@ -203,7 +190,8 @@ void *start_dirhandler(void *dir_data)
 			pthread_join(thread_pool[i], NULL);
 		free(thread_pool);
 	}
-	closedir(dirp);
+	if (closedir(dirp) == -1)
+		err(-1, "Error closing '%s'", t_data->filepath);
 	/*
 	 * We dont need to save the data (specifically the filepath)
 	 * that is passed to our threads. This differs from our
