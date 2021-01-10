@@ -65,29 +65,6 @@ static struct file_node *create_file_entry(struct file_database *db, char *pathn
 }
 
 /*
- * Purpose: Read data in from file descriptor and store it into a buffer.
- * Repeat this action until the amount requested has been fulfilled.
- * Return Value: Number of bytes read.
- */
-static int read_data(int fd, void *buf, size_t amt)
-{
-	int n_read, save_amt = amt;
-	char *byte = buf;
-	do {
-		n_read = read(fd, byte, amt);
-		if (n_read > 0) {
-			byte += n_read;
-			amt -= n_read;
-		} else if (n_read == 0) {
-			return 0;
-		} else {
-			warn("Error during read.");
-		}
-	} while (amt > 0);
-	return save_amt;
-}
-
-/*
  * Purpose: Handles opening files. Prints error message and exits
  * calling thread if something were to go wrong.
  * Return Value: Int of file descriptor.
@@ -132,7 +109,7 @@ static int get_word(int fd, struct file_node *file)
 		err(-1, "Memory alloc error");
 
 	i = 0;
-	while ((nr = read_data(fd, &r_byte, sizeof(r_byte))) > 0) {
+	while ((nr = read(fd, &r_byte, sizeof(r_byte))) > 0) {
 		bytes_parsed += nr;
 		if (valid_char(r_byte)) {
 			valid_letter_count++;
@@ -152,6 +129,8 @@ static int get_word(int fd, struct file_node *file)
 			break;
 		}
 	}
+	if (nr == -1)
+		err(-1, "Error while parsing %s", file->filepath);
 	word[i] = '\0';
 	/* Truncate our buffer to match the actual size of the word */
 	save = realloc(word, sizeof(*word) * (valid_letter_count + 1));
@@ -189,7 +168,7 @@ static void parse_file(int fd, struct file_node *file)
 	/* Dont add empty files to the list. */
 	total_bytes = file_size(fd);
 	while (total_bytes > 0) {
-		if ((n_read = read_data(fd, &r_byte, sizeof(r_byte))) == 0)
+		if ((n_read = read(fd, &r_byte, sizeof(r_byte))) <= 0)
 			break;
 		if (valid_char(r_byte)) {
 			lseek(fd, -1, SEEK_CUR);
