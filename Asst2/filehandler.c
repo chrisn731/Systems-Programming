@@ -23,13 +23,14 @@ static void insert_word_entry(struct file_node *file, char *word_to_insert)
 	struct file_word *new, **parser = &file->word;
 	int strcmp_ret;
 
+	file->num_words++;
 	while (*parser) {
 		strcmp_ret = strcmp((*parser)->word, word_to_insert);
 		if (strcmp_ret == 0) {
 			/* Our word alredy exists in our list */
 			(*parser)->count++;
 			free(word_to_insert);
-			goto done;
+			return;
 		} else if (strcmp_ret > 0) {
 			parser = &(*parser)->left;
 		} else {
@@ -38,8 +39,6 @@ static void insert_word_entry(struct file_node *file, char *word_to_insert)
 	}
 	new = new_word(word_to_insert);
 	*parser = new;
-done:
-	file->num_words++;
 }
 
 /*
@@ -56,7 +55,7 @@ static struct file_node *create_file_entry(struct file_database *db, char *pathn
 	new_entry = new_file(pathname);
 
 	pthread_mutex_lock(db_mut);
-	while (*parser != NULL)
+	while (*parser)
 		parser = &(*parser)->next;
 	new_entry->next = *parser;
 	*parser = new_entry;
@@ -73,14 +72,8 @@ static int open_file(const char *filepath)
 {
 	int fd;
 
-	if ((fd = open(filepath, O_RDONLY)) < 0) {
-		if (errno == EACCES)
-			warnx("Cannot access: '%s'", filepath);
-		else if (errno == ENFILE)
-			warnx("Limit of open files has been reached.");
-		else
-			warnx("Error accessing: '%s'", filepath);
-	}
+	if ((fd = open(filepath, O_RDONLY)) < 0)
+		warn("Cannot open '%s'", filepath);
 	return fd;
 }
 
@@ -100,38 +93,35 @@ static inline int valid_char(char c)
  */
 static int get_word(int fd, struct file_node *file)
 {
-	int bytes_parsed = 0, valid_letter_count = 0, buf_size = 32;
-	int i, nr;
+	int nr, bytes_parsed = 0, valid_letter_count = 0, buf_size = 32;
 	char *word, *save, r_byte;
 
 	word = malloc(sizeof(*word) * buf_size);
 	if (!word)
 		err(-1, "Memory alloc error");
 
-	i = 0;
 	while ((nr = read(fd, &r_byte, sizeof(r_byte))) > 0) {
 		bytes_parsed += nr;
 		if (valid_char(r_byte)) {
-			valid_letter_count++;
 			/*
 			 * In the unlikely case we come across a word longer
 			 * than 32 bytes, extend the buffer.
 			 */
-			if (i >= buf_size) {
+			if (valid_letter_count >= buf_size) {
 				save = realloc(word, sizeof(*word) * buf_size * 2);
 				if (!save)
 					err(-1, "Memory realloc error.");
 				word = save;
 				buf_size *= 2;
 			}
-			word[i++] = tolower(r_byte);
+			word[valid_letter_count++] = tolower(r_byte);
 		} else if (isspace(r_byte)) {
 			break;
 		}
 	}
 	if (nr == -1)
 		err(-1, "Error while parsing %s", file->filepath);
-	word[i] = '\0';
+	word[valid_letter_count] = '\0';
 	/* Truncate our buffer to match the actual size of the word */
 	save = realloc(word, sizeof(*word) * (valid_letter_count + 1));
 	if (!save)
@@ -165,13 +155,13 @@ static void parse_file(int fd, struct file_node *file)
 	int n_read;
 	char r_byte;
 
-	/* Dont add empty files to the list. */
 	total_bytes = file_size(fd);
 	while (total_bytes > 0) {
 		if ((n_read = read(fd, &r_byte, sizeof(r_byte))) <= 0)
 			break;
 		if (valid_char(r_byte)) {
-			lseek(fd, -1, SEEK_CUR);
+			if (lseek(fd, -1, SEEK_CUR) == -1)
+				err(-1, "Error parsing %s", file->filepath);
 			n_read = get_word(fd, file);
 		}
 		total_bytes -= n_read;
