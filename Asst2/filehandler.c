@@ -103,18 +103,18 @@ static int get_word(int fd, struct file_node *file)
 	while ((nr = read(fd, &r_byte, sizeof(r_byte))) > 0) {
 		bytes_parsed += nr;
 		if (valid_char(r_byte)) {
+			word[valid_letter_count++] = tolower(r_byte);
 			/*
 			 * In the unlikely case we come across a word longer
 			 * than 32 bytes, extend the buffer.
 			 */
 			if (valid_letter_count >= buf_size) {
-				save = realloc(word, sizeof(*word) * buf_size * 2);
+				buf_size *= 2;
+				save = realloc(word, sizeof(*word) * buf_size);
 				if (!save)
 					err(-1, "Memory realloc error.");
 				word = save;
-				buf_size *= 2;
 			}
-			word[valid_letter_count++] = tolower(r_byte);
 		} else if (isspace(r_byte)) {
 			break;
 		}
